@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>بغداد — مدينة المتابعين</title>
+<style>
+:root{--ink:#1f2a33;--card:#fffaf0;--accent:#c4552d;--gold:#e8b930}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#f4d9a8;font-family:Tajawal,"Segoe UI",Tahoma,sans-serif;color:var(--ink)}
+#map{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:block}
+.top{position:fixed;top:0;left:0;right:0;padding:10px 12px 22px;display:flex;gap:10px;align-items:flex-start;justify-content:space-between;background:linear-gradient(#3a2a14dd 55%,#3a2a1400);color:#fff;pointer-events:none}
+.top h1{margin:0;font-size:17px;line-height:1.2}
+.top .lvl{font-size:12px;opacity:.9;margin-top:2px}
+.count{font-size:22px;font-weight:800;text-align:left;line-height:1}
+.count small{display:block;font-size:11px;font-weight:500;opacity:.85;margin-top:3px}
+.prog{margin-top:7px;height:6px;border-radius:4px;background:#ffffff40;overflow:hidden;width:min(260px,60vw)}
+.prog i{display:block;height:100%;width:0;background:var(--gold);transition:width .5s}
+.next{font-size:11px;opacity:.9;margin-top:4px}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:10px 10px calc(10px + env(safe-area-inset-bottom));background:linear-gradient(#3a2a1400,#3a2a14ee 40%);display:flex;flex-direction:column;gap:8px}
+.row{display:flex;gap:8px;align-items:center}
+.row input[type=search]{flex:1;min-width:0;border:0;border-radius:12px;padding:11px 12px;font:inherit;font-size:15px;background:#fffaf0;color:var(--ink);direction:ltr;text-align:right}
+button{font:inherit;border:0;border-radius:12px;padding:10px 13px;background:#fffaf0;color:var(--ink);font-weight:700;font-size:15px;cursor:pointer}
+button.pri{background:var(--accent);color:#fff}
+button.on{background:var(--gold)}
+.row input[type=range]{flex:1;accent-color:var(--gold)}
+.tl{color:#fff;font-size:12px;white-space:nowrap;min-width:92px;text-align:center}
+#sheet{position:fixed;left:10px;right:10px;bottom:118px;background:var(--card);border-radius:16px;padding:14px 16px;box-shadow:0 8px 30px #0008;display:none}
+#sheet h2{margin:0 0 4px;font-size:19px;direction:ltr;text-align:right}
+#sheet p{margin:2px 0;font-size:14px;color:#4a5560}
+#sheet .x{position:absolute;top:8px;left:8px;padding:2px 9px;font-size:18px;background:#0000000f}
+#toast{position:fixed;top:78px;left:50%;transform:translateX(-50%) translateY(-20px);background:var(--gold);color:#2b2100;padding:10px 16px;border-radius:14px;font-weight:800;opacity:0;transition:.35s;pointer-events:none;max-width:90vw;text-align:center;box-shadow:0 6px 20px #0006}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+#admin{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;padding:14px}
+#admin .box{background:var(--card);border-radius:16px;padding:16px;width:min(520px,100%);max-height:90vh;overflow:auto}
+#admin h3{margin:0 0 8px}
+#admin textarea{width:100%;height:140px;border-radius:10px;border:1px solid #cfc5ad;padding:10px;font:14px monospace;direction:ltr;margin:6px 0}
+#admin .row{flex-wrap:wrap}
+#admin small{color:#6b7280;line-height:1.6;display:block}
+#err{position:fixed;inset:0;display:none;align-items:center;justify-content:center;color:#fff;background:#3a2a14;padding:24px;text-align:center;font-size:16px}
+</style>
+</head>
+<body>
+<div id="err">تعذر تحميل محرك الـ3D. تأكد من الإنترنت وافتح الصفحة مرة ثانية.</div>
+
+<div class="top">
+  <div>
+    <h1>🏙️ بغداد — مدينة المتابعين</h1>
+    <div class="lvl" id="lvl"></div>
+    <div class="prog"><i id="progBar"></i></div>
+    <div class="next" id="next"></div>
+  </div>
+  <div class="count"><span id="cnt">0</span><small>🏠 بيت</small></div>
+</div>
+
+<div id="sheet"><button class="x" id="sheetX">×</button><h2 id="shT"></h2><p id="shA"></p><p id="shB"></p><p><a id="shL" href="#" target="_blank" rel="noopener" style="display:none;color:#c4552d;font-weight:800;text-decoration:none">📷 افتح الحساب بانستا</a></p></div>
+<div id="toast"></div>
+
+<div class="bar">
+  <div class="row">
+    <input type="search" id="q" placeholder="دور على يوزرك… @username" autocomplete="off" autocapitalize="none">
+    <button class="pri" id="go">🔍</button>
+    <button id="walk" title="تمشّى بالمدينة">🚶</button>
+    <button id="fit" title="كل المدينة">🗺️</button>
+    <button id="adminBtn" style="display:none" title="إدارة">⚙️</button>
+  </div>
+  <div class="row">
+    <button id="play">▶</button>
+    <input type="range" id="tl" min="0" max="1" value="1">
+    <span class="tl" id="tlLbl"></span>
+  </div>
+</div>
+
+<div id="admin"><div class="box">
+  <h3>⚙️ إضافة دفعة اليوم</h3>
+  <small>الصق اليوزرات (كل يوزر بسطر أو بينهم فاصلة). تنضاف كدفعة جديدة بتاريخ اليوم وتبين على جهازك فوراً.<br>
+  لتثبيتها للجميع: انسخ البيانات وابعثها لي بالمحادثة وأحدّث الموقع.</small>
+  <textarea id="paste" placeholder="user1&#10;user2&#10;@user3"></textarea>
+  <div class="row">
+    <button class="pri" id="addBatch">➕ أضف الدفعة</button>
+    <button id="copyData">📋 نسخ كل البيانات</button>
+    <button id="clearLocal">🗑️ مسح إضافات جهازي</button>
+    <button id="closeAdmin">إغلاق</button>
+  </div>
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+"use strict";
+if(typeof THREE==="undefined"||!THREE.OrbitControls){document.getElementById("err").style.display="flex";return}
+
+/* ============================================================
+   بيانات المتابعين — كل يوم تنضاف دفعة جديدة هنا
+   (الأسماء الحالية أمثلة تجريبية، تنحذف عند إضافة الحقيقية)
+   ============================================================ */
+const BATCHES = [
+  {date:"2026-11-16", users:["demo_ali","demo_zainab","demo_hassan","demo_noor","demo_omar","demo_sara","demo_karar","demo_maryam"]},
+  {date:"2026-11-17", users:["demo_ahmed","demo_fatima","demo_mustafa","demo_huda","demo_yasser","demo_rana","demo_abbas","demo_layla","demo_zaid","demo_dina"]},
+  {date:"2026-11-18", users:["demo_hadi","demo_tuqa","demo_ibrahim","demo_ruqaya","demo_baqir","demo_alaa"]}
+];
+/* ============================================================ */
+
+/* الخريطة مرسومة من لقطة قوقل مابس: كل بكسل بالصورة = G وحدة بالعالم */
+const G=1.4, PW=750, PH=1624, K=1, CELL=7.5, S=CELL, WW=PW*G, WH=PH*G;
+const CENTER={x:470*G,y:795*G};
+const LS_KEY="bgd_local_batches_v1";
+const $=id=>document.getElementById(id);
+
+function hash(n){n=(n^61)^(n>>>16);n=n+(n<<3);n=n^(n>>>4);n=Math.imul(n,0x27d4eb2d);n=n^(n>>>15);return (n>>>0)/4294967296}
+function hstr(s){let h=7;for(let i=0;i<s.length;i++)h=(Math.imul(h,31)+s.charCodeAt(i))|0;return h}
+
+/* ---------- نهر دجلة (إحداثيات 2D ثم تتحول لـ3D بالقسمة على K) ---------- */
+const RP=([[432, -30], [470, 12], [495, 40], [495, 70], [468, 90], [447, 100], [446, 150], [450, 205], [420, 223], [380, 222], [350, 230], [325, 258], [310, 292], [314, 330], [338, 360], [345, 375], [330, 392], [300, 388], [285, 412], [283, 450], [290, 520], [305, 560], [335, 596], [352, 630], [365, 670], [370, 693], [370, 707], [355, 723], [353, 737], [380, 740], [390, 750], [392, 767], [403, 783], [430, 797], [450, 813], [463, 833], [467, 853], [458, 867], [420, 873], [397, 883], [383, 903], [385, 925], [405, 935], [427, 930], [450, 907], [473, 890], [500, 882], [517, 885], [525, 900], [522, 940], [523, 973], [533, 997], [573, 1003], [607, 1010], [617, 1020], [583, 1063], [573, 1100], [593, 1123], [640, 1133], [700, 1167], [770, 1210], [840, 1250]]).map(p=>[p[0]*G,p[1]*G]);
+const R=[];
+(function(){
+  const n=RP.length;
+  for(let i=0;i<n-1;i++){
+    const p0=RP[Math.max(i-1,0)],p1=RP[i],p2=RP[i+1],p3=RP[Math.min(i+2,n-1)];
+    for(let k=0;k<10;k++){
+      const t=k/10,t2=t*t,t3=t2*t;
+      const f=(a,b,c,d)=>0.5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t2+(-a+3*b-3*c+d)*t3);
+      R.push({x:f(p0[0],p1[0],p2[0],p3[0]),y:f(p0[1],p1[1],p2[1],p3[1])});
+    }
+  }
+  R.push({x:RP[n-1][0],y:RP[n-1][1]});
+})();
+function distSeg(px,py,ax,ay,bx,by){
+  const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy;
+  let t=l?((px-ax)*dx+(py-ay)*dy)/l:0;t=Math.max(0,Math.min(1,t));
+  return Math.hypot(px-(ax+t*dx),py-(ay+t*dy));
+}
+function distRiver(x,y){let m=1e9;for(let i=0;i<R.length-1;i++){const d=distSeg(x,y,R[i].x,R[i].y,R[i+1].x,R[i+1].y);if(d<m)m=d}return m}
+
+const BR=[
+  {id:"b1",name:"جسر الجمهورية",at:[418,790],need:25,desc:"يربط الكرخ بالرصافة"},
+  {id:"b3",name:"جسر الأحرار",at:[447,814],need:150,desc:"قلب بغداد"},
+  {id:"b2",name:"جسر الأئمة",at:[368,686],need:250,desc:"بين الكاظمية والأعظمية"},
+  {id:"b5",name:"جسر الصرافية",at:[372,741],need:350,desc:"بين الوزيرية والعطيفية"},
+  {id:"b4",name:"جسر الجادرية",at:[500,883],need:600,desc:"نحو الجادرية والكرادة"},
+  {id:"b6",name:"جسر ديالى",at:[612,1015],need:800,desc:"عند التقاء ديالى بدجلة"}
+];
+BR.forEach(b=>{
+  let bi=0,bd=1e9;const px=b.at[0]*G,py=b.at[1]*G;
+  for(let i=0;i<R.length;i++){const d=Math.hypot(R[i].x-px,R[i].y-py);if(d<bd){bd=d;bi=i}}
+  const i=Math.max(1,Math.min(R.length-2,bi)),p=R[i],q=R[i-1],r=R[i+1];
+  const dx=r.x-q.x,dy=r.y-q.y,l=Math.hypot(dx,dy)||1,nx=-dy/l,ny=dx/l;
+  b.ax=p.x-nx*16.5;b.ay=p.y-ny*16.5;b.bx=p.x+nx*16.5;b.by=p.y+ny*16.5;b.x=p.x;b.y=p.y;
+});
+const LM=[
+  {id:"tahrir",name:"نصب الحرية",emoji:"🕊️",x:470*G,y:795*G,need:0,desc:"ساحة التحرير — منها تنطلق المدينة"},
+  {id:"turath",name:"جامعة التراث",emoji:"🎓",x:350*G,y:840*G,need:0,desc:"صرح علمي بالمنصور — جامعة التراث"},
+  {id:"mutanabbi",name:"شارع المتنبي",emoji:"📚",x:448*G,y:772*G,need:50,desc:"شارع الكتب والثقافة"},
+  {id:"qishla",name:"القشلة",emoji:"🕰️",x:452*G,y:750*G,need:80,desc:"ساعة القشلة التراثية"},
+  {id:"mustansiriya",name:"المدرسة المستنصرية",emoji:"🏛️",x:482*G,y:768*G,need:100,desc:"من أقدم الجامعات بالعالم"},
+  {id:"tower",name:"برج بغداد",emoji:"🗼",x:505*G,y:832*G,need:0,desc:"أعلى معلم بالعاصمة"},
+  {id:"kadhimiya",name:"مرقد الكاظمية",emoji:"🕌",x:338*G,y:676*G,need:300,desc:"قبتان ذهبيتان على الكرخ"},
+  {id:"shaheed",name:"نصب الشهيد",emoji:"🌙",x:545*G,y:842*G,need:400,desc:"القبة الزرقاء المشطورة"},
+  {id:"umqura",name:"جامع أم القرى",emoji:"🕌",x:250*G,y:800*G,need:500,desc:"من أكبر جوامع المدينة"},
+  {id:"zawraa",name:"حديقة الزوراء",emoji:"🎡",x:398*G,y:818*G,need:700,desc:"متنفس العائلة بالجانب الغربي"},
+  {id:"airport",name:"مطار بغداد",emoji:"✈️",x:165*G,y:915*G,need:1000,desc:"بوابة العاصمة على العالم"}
+];
+LM.forEach(l=>{ // نبعد المعلم عن النهر
+  let bi=0,bd=1e9;for(let i=0;i<R.length;i++){const d=Math.hypot(R[i].x-l.x,R[i].y-l.y);if(d<bd){bd=d;bi=i}}
+  if(bd<24){const dx=l.x-R[bi].x,dy=l.y-R[bi].y,L=Math.hypot(dx,dy)||1;l.x=R[bi].x+dx/L*24;l.y=R[bi].y+dy/L*24}
+});
+const DISTRICTS=[["الكاظمية",335,700],["الأعظمية",410,700],["الشعب",450,630],["الوزيرية",420,735],["الشعلة",235,725],["الحرية",295,755],["الغزالية",190,795],["العامرية",110,850],["المنصور",345,835],["اليرموك",285,845],["حي الجامعة",330,880],["الجادرية",435,910],["الكرادة",500,870],["الرصافة",465,785],["مدينة الصدر",570,730],["الأمين",560,870],["بغداد الجديدة",590,800],["النهروان",640,700],["الدورة",400,1000],["البياع",270,960],["السيدية",300,1010],["الزعفرانية",560,1000],["المطار",150,940]].map(d=>[d[0],d[1]*G,d[2]*G]);
+function districtOf(x,y){let b=null,m=1e9;for(const d of DISTRICTS){const k=Math.hypot(d[1]-x,d[2]-y);if(k<m){m=k;b=d[0]}}return b}
+const BOUND=[[661, 856], [665, 877], [668, 899], [648, 917], [640, 936], [648, 961], [642, 983], [627, 999], [613, 1016], [601, 1034], [589, 1051], [568, 1060], [528, 1045], [513, 1056], [488, 1049], [461, 1035], [447, 1040], [435, 1051], [423, 1063], [405, 1055], [391, 1068], [376, 1071], [360, 1073], [344, 1075], [327, 1076], [311, 1077], [293, 1078], [275, 1080], [255, 1081], [234, 1082], [212, 1083], [188, 1082], [162, 1081], [144, 1069], [132, 1050], [121, 1032], [116, 1010], [107, 991], [98, 973], [89, 955], [81, 936], [70, 917], [63, 897], [49, 878], [40, 856], [35, 834], [65, 814], [99, 799], [109, 783], [126, 769], [136, 754], [149, 742], [169, 735], [182, 725], [200, 720], [214, 714], [228, 709], [242, 705], [254, 700], [267, 696], [281, 697], [292, 692], [304, 690], [332, 645], [344, 621], [360, 600], [377, 601], [394, 600], [412, 600], [430, 599], [449, 600], [468, 602], [492, 597], [507, 609], [524, 620], [540, 630], [566, 631], [593, 635], [626, 637], [656, 645], [664, 670], [674, 692], [681, 715], [680, 741], [665, 769], [660, 792], [655, 814], [662, 834]].map(p=>({x:p[0]*G,y:p[1]*G}));
+function inPoly(x,y,P){let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const a=P[i],b=P[j];if((a.y>y)!==(b.y>y)&&x<(b.x-a.x)*(y-a.y)/(b.y-a.y)+a.x)c=!c}return c}
+
+/* ---------- أماكن البيوت (داخل حدود أمانة بغداد فقط) ---------- */
+const slots=[];
+const NXc=Math.floor(WW/CELL),NZc=Math.floor(WH/CELL);
+for(let j=0;j<NZc;j++)for(let i=0;i<NXc;i++){
+  const x=i*CELL+CELL/2,y=j*CELL+CELL/2;
+  if(!inPoly(x,y,BOUND))continue;
+  if(distRiver(x,y)<14)continue;
+  let bad=false;
+  for(const l of LM)if(Math.hypot(l.x-x,l.y-y)<11){bad=true;break}
+  if(bad)continue;
+  for(const b of BR)if(distSeg(x,y,b.ax,b.ay,b.bx,b.by)<5){bad=true;break}
+  if(bad)continue;
+  slots.push({x,y,i,j,k:Math.hypot(x-CENTER.x,y-CENTER.y)+hash(i*977+j*131)*10});
+}
+slots.sort((a,b)=>a.k-b.k);
+const CAP=slots.length;
+
+/* ---------- المشهد ---------- */
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const cv=renderer.domElement;cv.id="map";document.body.insertBefore(cv,document.body.firstChild);
+const scene=new THREE.Scene();
+const SKY=0xf4d9a8;
+scene.background=new THREE.Color(SKY);
+scene.fog=new THREE.Fog(SKY,600,3200);
+const camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,.5,8000);
+const controls=new THREE.OrbitControls(camera,cv);
+controls.enableDamping=true;controls.dampingFactor=.09;
+controls.screenSpacePanning=false;
+controls.maxPolarAngle=1.25;controls.minPolarAngle=.22;
+controls.minDistance=7;controls.maxDistance=1500;
+controls.touches={ONE:THREE.TOUCH.PAN,TWO:THREE.TOUCH.DOLLY_ROTATE};
+controls.panSpeed=1.1;
+controls.target.set(CENTER.x/K,0,CENTER.y/K);
+camera.position.set(CENTER.x/K,46,CENTER.y/K+52);
+controls.update();
+
+scene.add(new THREE.HemisphereLight(0xfff4dc,0xb59a6a,.85));
+const sun=new THREE.DirectionalLight(0xfff0cf,.95);
+const SUNOFF=new THREE.Vector3(55,85,38);
+sun.castShadow=true;
+sun.shadow.mapSize.set(1024,1024);
+sun.shadow.camera.left=-48;sun.shadow.camera.right=48;sun.shadow.camera.top=48;sun.shadow.camera.bottom=-48;
+sun.shadow.camera.near=1;sun.shadow.camera.far=260;
+sun.shadow.bias=-0.0006;
+scene.add(sun);scene.add(sun.target);
+
+const mats={};
+function mat(c,o){const k=c+JSON.stringify(o||{});return mats[k]||(mats[k]=new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.9,metalness:0},o||{})))}
+const boxG=new THREE.BoxGeometry(1,1,1);
+function B(p,w,h,d,c,x,y,z){const m=new THREE.Mesh(boxG,mat(c));m.scale.set(w,h,d);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;p.add(m);return m}
+function C(p,rt,rb,h,c,x,y,z,seg){const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg||12),mat(c));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;p.add(m);return m}
+function D(p,r,c,x,y,z,o){const m=new THREE.Mesh(new THREE.SphereGeometry(r,18,10,0,Math.PI*2,0,Math.PI/2),mat(c,o||{}));m.position.set(x,y,z);m.castShadow=true;p.add(m);return m}
+
+/* ---------- الأرض والنهر ---------- */
+const WX=WW/K, WZ=WH/K;
+(function(){
+  const far=new THREE.Mesh(new THREE.PlaneGeometry(30000,30000),new THREE.MeshStandardMaterial({color:0xc9a96f,roughness:1}));
+  far.rotation.x=-Math.PI/2;far.position.set(WX/2,-.08,WZ/2);scene.add(far);
+  const g=new THREE.Mesh(new THREE.PlaneGeometry(WX+900,WZ+900),new THREE.MeshStandardMaterial({color:0xe8cf9d,roughness:1}));
+  g.rotation.x=-Math.PI/2;g.position.set(WX/2,0,WZ/2);g.receiveShadow=true;scene.add(g);
+  function ribbon(hw,y,color,rough){
+    const pos=[],idx=[];
+    for(let i=0;i<R.length;i++){
+      const a=R[Math.max(i-1,0)],b=R[Math.min(i+1,R.length-1)];
+      let dx=b.x-a.x,dy=b.y-a.y;const l=Math.hypot(dx,dy)||1;dx/=l;dy/=l;
+      const nx=-dy,ny=dx,px=R[i].x/K,pz=R[i].y/K;
+      pos.push(px-nx*hw,y,pz-ny*hw,px+nx*hw,y,pz+ny*hw);
+      if(i<R.length-1){const o=i*2;idx.push(o,o+1,o+2,o+1,o+3,o+2)}
+    }
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));
+    geo.setIndex(idx);geo.computeVertexNormals();
+    const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color,roughness:rough,metalness:.05,side:THREE.DoubleSide}));
+    m.receiveShadow=true;scene.add(m);return m;
+  }
+  ribbon(14,.03,0xa5c47e,1);
+  ribbon(10,.07,0x3f9cbd,.25);
+  ribbon(5,.09,0x6fc0da,.2);
+})();
+
+/* نخيل على ضفاف النهر */
+(function(){
+  const spots=[];
+  for(let i=2;i<R.length-2;i+=3){
+    const a=R[i-1],b=R[i+1];let dx=b.x-a.x,dy=b.y-a.y;const l=Math.hypot(dx,dy)||1;dx/=l;dy/=l;
+    for(const side of[-1,1]){
+      const r=hash(i*31+side*7);if(r<.35)continue;
+      const off=11.8+hash(i*5+side)*2;
+      const x=(R[i].x/K)+(-dy)*side*off,z=(R[i].y/K)+dx*side*off;
+      let near=false;for(const b2 of BR)if(distSeg(x,z,b2.ax/K,b2.ay/K,b2.bx/K,b2.by/K)<7){near=true;break}
+      if(!near)spots.push([x,z,4+hash(i*13+side)*2.5]);
+    }
+  }
+  const trunk=new THREE.InstancedMesh(new THREE.CylinderGeometry(.22,.38,1,6),mat(0x7a5a38),spots.length);
+  const crown=new THREE.InstancedMesh(new THREE.SphereGeometry(1.9,7,5),mat(0x3f8a3a),spots.length);
+  const m4=new THREE.Matrix4(),q=new THREE.Quaternion(),p=new THREE.Vector3(),s=new THREE.Vector3();
+  spots.forEach((t,n)=>{
+    p.set(t[0],t[2]/2,t[1]);s.set(1,t[2],1);m4.compose(p,q,s);trunk.setMatrixAt(n,m4);
+    p.set(t[0],t[2]+.3,t[1]);s.set(1,.38,1);m4.compose(p,q,s);crown.setMatrixAt(n,m4);
+  });
+  trunk.castShadow=crown.castShadow=true;
+  scene.add(trunk);scene.add(crown);
+})();
+
+/* ---------- البيوت (طين وشرفات) ---------- */
+const _m=new THREE.Matrix4(),_p=new THREE.Vector3(),_q=new THREE.Quaternion(),_s=new THREE.Vector3(),_qy=new THREE.Quaternion(),UP=new THREE.Vector3(0,1,0);
+function inst(cap,mt,shadow){const m=new THREE.InstancedMesh(boxG,mt,cap);m.castShadow=shadow!==false;m.receiveShadow=true;m.count=0;m.frustumCulled=false;scene.add(m);return m}
+const matW=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1});
+const bodyM=inst(CAP,matW),merM=inst(CAP*8,matW),doorM=inst(CAP,mat(0x5b3a1e)),winM=inst(CAP*2,mat(0x3b2a1c)),padM=inst(CAP,mat(0xd2b583),false);
+const MERL=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+const PAL=[0xdcc08c,0xe4cb99,0xd2b27a,0xe9d4a9,0xcba46a,0xd8b98a];
+let houses=[];
+/* علامات حدود أمانة بغداد */
+(function(){
+  const marks=[];
+  for(let i=0;i<BOUND.length;i++){const a=BOUND[i],b=BOUND[(i+1)%BOUND.length],dx=b.x-a.x,dz=b.y-a.y,l=Math.hypot(dx,dz),n=Math.max(1,Math.floor(l/9));
+    for(let k=0;k<n;k++){const t=(k+.5)/n;marks.push([a.x+dx*t,a.y+dz*t,Math.atan2(dz,dx)])}}
+  const mm=new THREE.InstancedMesh(boxG,mat(0xc4552d),marks.length);
+  marks.forEach((m,n)=>{_p.set(m[0],.5,m[1]);_qy.setFromAxisAngle(UP,-m[2]);_s.set(4,1,.7);_m.compose(_p,_qy,_s);mm.setMatrixAt(n,_m)});
+  mm.frustumCulled=false;scene.add(mm);
+})();
+
+function writeHouse(n,k){
+  const h=houses[n],w=h.w,H=h.h,y0=.12;
+  _q.identity();
+  _p.set(h.x,y0+H*k/2,h.z);_s.set(w*k,H*k,w*k);_m.compose(_p,_q,_s);bodyM.setMatrixAt(n,_m);
+  _p.set(h.x,.06,h.z);_s.set(S*k,.12,S*k);_m.compose(_p,_q,_s);padM.setMatrixAt(n,_m);
+  const o=w/2-.35;
+  for(let m=0;m<8;m++){
+    _p.set(h.x+MERL[m][0]*o,y0+(H+.35)*k,h.z+MERL[m][1]*o);_s.set(.7*k,.7*k,.7*k);_m.compose(_p,_q,_s);merM.setMatrixAt(n*8+m,_m);
+  }
+  _qy.setFromAxisAngle(UP,h.rot);
+  const cs=Math.cos(h.rot),sn=Math.sin(h.rot);
+  let lx=0,lz=w/2+.05;
+  _p.set(h.x+lx*cs+lz*sn,y0+1.1*k,h.z-lx*sn+lz*cs);_s.set(1.3*k,2.2*k,.2*k);_m.compose(_p,_qy,_s);doorM.setMatrixAt(n,_m);
+  for(let side=0;side<2;side++){
+    lx=side?1.5:-1.5;
+    _p.set(h.x+lx*cs+lz*sn,y0+H*.62*k,h.z-lx*sn+lz*cs);_s.set(.9*k,.9*k,.2*k);_m.compose(_p,_qy,_s);winM.setMatrixAt(n*2+side,_m);
+  }
+}
+function flushInst(){bodyM.instanceMatrix.needsUpdate=true;merM.instanceMatrix.needsUpdate=true;doorM.instanceMatrix.needsUpdate=true;winM.instanceMatrix.needsUpdate=true;padM.instanceMatrix.needsUpdate=true}
+function applyCounts(v){bodyM.count=v;merM.count=v*8;doorM.count=v;winM.count=v*2;padM.count=v}
+
+/* ---------- المعالم ثلاثية الأبعاد ---------- */
+const stone=0xd8cdb0,gold=0xd9a521;
+const LMB={
+  tahrir(g){
+    B(g,13,1,4.5,stone,0,.5,0);B(g,11,5,1.4,0xd8b98a,0,3.5,0);
+    for(let k=-2;k<=2;k++)B(g,1,1.7+((k+2)%3)*.8,.8,0x6b4a2a,k*2,7.2,.7);
+    B(g,12,.5,2,stone,0,6.2,.2);
+    return 10;
+  },
+  turath(g){
+    const hall=0xe6d2a4,wing=0xdcc590;
+    B(g,11,7,7,hall,0,3.6,0);B(g,5,5,6,wing,-8,2.6,0);B(g,5,5,6,wing,8,2.6,0);
+    for(let k=0;k<8;k++){B(g,.9,.9,.9,hall,-4.9+k*1.4,7.5,3.1);B(g,.9,.9,.9,hall,-4.9+k*1.4,7.5,-3.1)}
+    for(const sx of[-1,1])for(let k=0;k<3;k++)B(g,.9,.9,.9,wing,sx*8-1.6+k*1.6,5.5,2.6);
+    B(g,4,5,.6,0x4a2f18,0,2.6,3.6);
+    const arch=C(g,2,2,.6,0x4a2f18,0,5.1,3.6,16);arch.rotation.x=Math.PI/2;
+    for(const sx of[-2.6,2.6])C(g,.4,.4,5.2,0xf3e7c6,sx,2.7,4.5);
+    B(g,6.4,.5,2,0xf3e7c6,0,5.4,4.3);
+    C(g,3,3,1.6,hall,0,8.2,0,16);D(g,3.2,0x1f6fa5,0,9,0);
+    C(g,.1,.1,6,0xffffff,0,13,0,6);B(g,2.2,1.2,.06,0xc4552d,1.2,15.4,0);
+    for(const sx of[-8,8]){B(g,1.2,1.6,.2,0x3b2a1c,sx-1,3,3.05);B(g,1.2,1.6,.2,0x3b2a1c,sx+1,3,3.05)}
+    return 18;
+  },
+  mutanabbi(g){
+    for(let k=0;k<6;k++){
+      const x=-8+k*3.2;
+      B(g,2.6,1.4,2,0x8a5a30,x,.7,0);
+      const aw=B(g,2.9,.15,2.6,k%2?0x2d5f9a:0xf2ead6,x,2.7,.1);aw.rotation.x=.3;
+      B(g,.15,2.2,.15,0x5b3a1e,x-1.3,1.1,1);B(g,.15,2.2,.15,0x5b3a1e,x+1.3,1.1,1);
+      B(g,.5,.35,.4,0xb5472b,x-.6,1.55,0);B(g,.5,.35,.4,0x3c6e8f,x+.2,1.55,0);B(g,.5,.35,.4,0x2f7d6b,x+.9,1.55,0);
+    }
+    return 6;
+  },
+  qishla(g){
+    B(g,12,4,5,0xc79a62,0,2,-5);
+    B(g,4,14,4,0xa65b3a,0,7,0);B(g,5,1,5,0x8c4a2e,0,14.5,0);
+    const cl=C(g,1.3,1.3,.3,0xffffff,0,11,2.1,20);cl.rotation.x=Math.PI/2;
+    C(g,.08,.08,.8,0x222222,0,11.3,2.3,4);
+    const roof=new THREE.Mesh(new THREE.ConeGeometry(3.4,4,4),mat(0x5b3a1e));roof.rotation.y=Math.PI/4;roof.position.set(0,17,0);roof.castShadow=true;g.add(roof);
+    return 20;
+  },
+  mustansiriya(g){
+    const c=0xcaa56a;
+    B(g,16,5,6,c,0,2.5,0);B(g,3,3.4,.4,0x4a2f18,0,1.7,3.05);
+    const a=C(g,1.5,1.5,.4,0x4a2f18,0,3.4,3.05,14);a.rotation.x=Math.PI/2;
+    for(let k=0;k<11;k++){B(g,.8,.8,.8,c,-7.2+k*1.44,5.4,2.6);B(g,.8,.8,.8,c,-7.2+k*1.44,5.4,-2.6)}
+    D(g,2,0x2c7ba0,-5,5,0);D(g,2,0x2c7ba0,5,5,0);
+    return 8;
+  },
+  tower(g){ // برج بغداد: قاعدة بيضاء بنوافذ زرقاء، عمود أبيض، منصات، كبسولة زجاج أزرق، وصاري أحمر وأبيض
+    const white=0xf4f2ec;
+    C(g,5.4,5.7,3,white,0,1.5,0,24);
+    for(let k=0;k<10;k++){const a=k*Math.PI*2/10;const w=B(g,.9,1.2,.3,0x2b6fd6,Math.cos(a)*5.6,1.5,Math.sin(a)*5.6);w.rotation.y=Math.PI/2-a}
+    const dm=D(g,4.6,white,0,3,0);dm.scale.y=.4;
+    B(g,3.2,24,3.2,0xf3f1ea,0,15,0);
+    B(g,.22,19,.12,0x2a2a2e,0,16,1.62);B(g,.22,19,.12,0x2a2a2e,0,16,-1.62);
+    B(g,.12,22,.12,0xd2cfc6,1.45,15,1.62);B(g,.12,22,.12,0xd2cfc6,-1.45,15,1.62);
+    for(const y of[19.4,22,24.7]){
+      B(g,4.6,.25,4.6,0xdcdcd8,0,y,0);
+      for(const dx of[-1.6,0,1.6]){const d=D(g,.5,0xffffff,dx,y+.12,2.3);d.scale.set(1,.8,1)}
+    }
+    C(g,3.6,3.0,1.4,0xffffff,0,27.7,0,22);
+    for(let k=0;k<10;k++){const a=k*Math.PI*2/10;const w=B(g,.5,.35,.3,0x2f3a48,Math.cos(a)*3.4,27.9,Math.sin(a)*3.4);w.rotation.y=Math.PI/2-a}
+    const pod=C(g,3.0,3.3,3.8,0x2060d0,0,30.3,0,28);pod.material=mat(0x2060d0,{metalness:.55,roughness:.18});
+    C(g,2.0,2.8,.8,0xffffff,0,32.6,0,22);
+    const lat=new THREE.Mesh(new THREE.ConeGeometry(1.3,3.2,6),mat(0xeeeeee));lat.position.set(0,34.6,0);lat.castShadow=true;g.add(lat);
+    let y=36.2;
+    for(const seg of[[4,0xffffff],[2.2,0x7a1c2b],[6,0xffffff],[1.4,0x7a1c2b],[5,0xffffff],[1.3,0x7a1c2b]]){C(g,.2,.2,seg[0],seg[1],0,y+seg[0]/2,0,8);y+=seg[0]}
+    // مبنى مجاور وعلم
+    B(g,3.6,9,3.8,0xb98a63,-8.2,4.5,-2.5);B(g,1.2,8,.12,0x1f3a63,-8.2,4.6,-.55);
+    B(g,3.2,6.5,3.4,0xc19470,-8.4,3.3,2.6);B(g,1.1,5.6,.12,0x1f3a63,-8.4,3.3,4.35);
+    C(g,.08,.08,5,0xdddddd,-6.5,2.5,5.5,6);B(g,1.4,.3,.05,0xc4202b,-5.8,4.7,5.5);B(g,1.4,.3,.05,0xffffff,-5.8,4.4,5.5);B(g,1.4,.3,.05,0x111111,-5.8,4.1,5.5);
+    return y+1;
+  },
+  kadhimiya(g){
+    const w=0xe9e2cf;
+    B(g,15,4.5,11,w,0,2.25,0);B(g,7,2,7,0xf3ecd8,0,5.5,0);
+    for(const sx of[-3.2,3.2]){C(g,2.4,2.4,2,0xd9c9a0,sx,6.5,0,16);D(g,2.7,gold,sx,7.5,0,{metalness:.5,roughness:.4});C(g,.1,.1,1.5,gold,sx,11,0,4)}
+    for(const sx of[-7,7])for(const sz of[-5.4,5.4]){C(g,.5,.6,10,w,sx,5,sz,10);C(g,.9,.9,1.2,gold,sx,10.5,sz,10);D(g,.9,gold,sx,11.1,sz,{metalness:.5})}
+    return 14;
+  },
+  shaheed(g){
+    C(g,6.5,6.7,1,0xd8d0bb,0,.5,0,28);
+    const geo=new THREE.SphereGeometry(5.4,24,14,0,Math.PI,0,Math.PI/2);
+    const mm=new THREE.MeshStandardMaterial({color:0x2aa6b8,roughness:.5,side:THREE.DoubleSide});
+    const a=new THREE.Mesh(geo,mm);a.position.set(-.8,1,0);a.castShadow=true;g.add(a);
+    const b=new THREE.Mesh(geo,mm);b.rotation.y=Math.PI;b.position.set(.8,1,0);b.castShadow=true;g.add(b);
+    C(g,.12,.12,9,0xffffff,0,5.5,0,6);
+    return 10;
+  },
+  umqura(g){
+    const w=0xe3d3ae;
+    B(g,14,5,14,w,0,2.5,0);C(g,4.4,4.4,1.6,w,0,5.8,0,18);D(g,4.6,0x3a78b5,0,6.6,0);
+    for(const sx of[-6.4,6.4])for(const sz of[-6.4,6.4]){C(g,.55,.7,13,w,sx,6.5,sz,10);D(g,.8,0x3a78b5,sx,13,sz)}
+    return 15;
+  },
+  zawraa(g){
+    C(g,9,9,.2,0x7aa35a,0,.1,0,28);
+    const wheel=new THREE.Group();wheel.position.y=8.5;g.add(wheel);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(6,.25,8,36),mat(0xe05a3a));ring.castShadow=true;wheel.add(ring);
+    for(let k=0;k<6;k++){const sp=B(wheel,12,.15,.15,0xdddddd,0,0,0);sp.rotation.z=k*Math.PI/6}
+    const cols=[0x2d5f9a,0xe8b930,0x2f7d6b,0xc4552d];
+    for(let k=0;k<12;k++){const a=k*Math.PI/6;B(wheel,1.1,1.1,1.1,cols[k%4],Math.cos(a)*6,Math.sin(a)*6,0)}
+    B(g,.5,8.5,.5,0x555555,-2.5,4.2,.5).rotation.z=-.2;B(g,.5,8.5,.5,0x555555,2.5,4.2,.5).rotation.z=.2;
+    B(g,.5,8.5,.5,0x555555,-2.5,4.2,-.5).rotation.z=-.2;B(g,.5,8.5,.5,0x555555,2.5,4.2,-.5).rotation.z=.2;
+    g.userData.spin=wheel;
+    return 15;
+  },
+  airport(g){
+    B(g,18,3.5,8,0xcfd8de,0,1.75,0);B(g,19,.5,9,0x8fa3b3,0,3.8,0);B(g,16,2.4,.2,0x6fa6c4,0,1.9,4.05);
+    C(g,1.3,1.6,11,0xe8e8e8,7,5.5,-6,12);B(g,3.2,1.6,3.2,0x5f8fb0,7,11.6,-6);
+    return 14;
+  }
+};
+const LMTOP={};
+LM.forEach((l,i)=>{
+  l.X=l.x/K;l.Z=l.y/K;
+  const root=new THREE.Group();root.position.set(l.X,0,l.Z);root.userData.lm=i;
+  const open=new THREE.Group(),lock=new THREE.Group();
+  const top=LMB[l.id](open);
+  B(lock,10,.4,10,0x9aa0a6,0,.2,0);
+  for(const sx of[-4.5,4.5])for(const sz of[-4.5,4.5])B(lock,.4,2.6,.4,0xe8b930,sx,1.5,sz);
+  B(lock,9,.3,.3,0xe8b930,0,2.6,4.5);B(lock,9,.3,.3,0xe8b930,0,2.6,-4.5);
+  root.add(open);root.add(lock);scene.add(root);
+  l.root=root;l.open=open;l.lock=lock;l.top=top;l.state=null;l.pop=0;
+  if(l.id==="tahrir"||l.id==="turath"){}
+});
+
+/* لافتات المعالم */
+function rr(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
+function plateCanvas(text,locked){
+  const c=document.createElement("canvas");c.width=512;c.height=128;const g=c.getContext("2d");
+  g.fillStyle=locked?"rgba(45,55,65,.9)":"rgba(255,250,235,.96)";rr(g,6,10,500,108,34);g.fill();
+  g.lineWidth=5;g.strokeStyle=locked?"rgba(255,255,255,.5)":"#c4552d";g.stroke();
+  g.fillStyle=locked?"#e5e9ee":"#4a2410";g.textAlign="center";g.textBaseline="middle";g.direction="rtl";
+  let fs=50;g.font="800 "+fs+"px Tajawal,Tahoma,sans-serif";
+  while(g.measureText(text).width>460&&fs>20){fs-=3;g.font="800 "+fs+"px Tajawal,Tahoma,sans-serif"}
+  g.fillText(text,256,68);
+  return c;
+}
+function makeSprite(){
+  const tex=new THREE.CanvasTexture(plateCanvas("",false));
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false}));
+  sp.scale.set(15,3.75,1);scene.add(sp);return sp;
+}
+function setSprite(sp,text,locked){
+  const old=sp.material.map;
+  sp.material.map=new THREE.CanvasTexture(plateCanvas(text,locked));
+  sp.material.needsUpdate=true;if(old)old.dispose();
+}
+LM.forEach(l=>{l.sprite=makeSprite();l.sprite.position.set(l.X,l.top+3.5,l.Z)});
+/* أسماء الأحياء (تظهر عند التبعيد) */
+const DSPR=[];
+DISTRICTS.forEach(d=>{
+  const c=document.createElement("canvas");c.width=512;c.height=128;const g=c.getContext("2d");
+  g.textAlign="center";g.textBaseline="middle";g.direction="rtl";g.font="800 64px Tajawal,Tahoma,sans-serif";
+  g.lineWidth=12;g.strokeStyle="rgba(255,250,235,.9)";g.strokeText(d[0],256,64);g.fillStyle="#6b4a22";g.fillText(d[0],256,64);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthTest:false,depthWrite:false}));
+  sp.scale.set(52,13,1);sp.position.set(d[1],8,d[2]);sp.renderOrder=5;sp.visible=false;scene.add(sp);DSPR.push(sp);
+});
+
+/* الجسور */
+BR.forEach(b=>{
+  const ax=b.ax/K,az=b.ay/K,bx=b.bx/K,bz=b.by/K,len=Math.hypot(bx-ax,bz-az);
+  const g=new THREE.Group();g.position.set(b.x/K,0,b.y/K);g.rotation.y=-Math.atan2(bz-az,bx-ax);
+  const open=new THREE.Group();
+  B(open,len,.8,4.4,0xb89a62,0,.7,0);B(open,len,.6,.35,0x8a7048,0,1.35,2.1);B(open,len,.6,.35,0x8a7048,0,1.35,-2.1);
+  for(let k=-3;k<=3;k++){B(open,.7,2,.7,0x8a7048,k*(len/7),1.2,2.1);B(open,.7,2,.7,0x8a7048,k*(len/7),1.2,-2.1)}
+  const ghost=new THREE.Mesh(boxG,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.3,depthWrite:false}));
+  ghost.scale.set(len,.4,3.6);ghost.position.y=.8;
+  g.add(open);g.add(ghost);scene.add(g);
+  b.open=open;b.ghost=ghost;b.state=null;
+  b.sprite=makeSprite();b.sprite.scale.set(11,2.75,1);b.sprite.position.set(b.x/K,5,b.y/K);
+});
+
+function refreshLandmarks(initial){
+  LM.forEach(l=>{
+    const ok=visible>=l.need;
+    if(l.state!==ok){
+      l.open.visible=ok;l.lock.visible=!ok;
+      setSprite(l.sprite,ok?l.emoji+" "+l.name:"🔒 "+l.name+" · "+l.need,!ok);
+      if(ok&&l.state===false&&!initial)l.pop=performance.now();
+      l.state=ok;
+    }
+  });
+  BR.forEach(b=>{
+    const ok=visible>=b.need;
+    if(b.state!==ok){
+      b.open.visible=ok;b.ghost.visible=!ok;
+      setSprite(b.sprite,ok?"🌉 "+b.name:"🔒 "+b.name+" · "+b.need,!ok);
+      b.state=ok;
+    }
+  });
+}
+
+/* ---------- لافتات أسماء البيوت (مجمّع) ---------- */
+const POOL=[];
+(function(){
+  const geo=new THREE.PlaneGeometry(4.4,1.1);
+  for(let i=0;i<46;i++){
+    const c=document.createElement("canvas");c.width=256;c.height=64;
+    const tex=new THREE.CanvasTexture(c);
+    const plate=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({map:tex,transparent:true}));
+    const g=new THREE.Group();g.add(plate);g.visible=false;scene.add(g);
+    POOL.push({g,plate,c,tex,n:-1});
+  }
+})();
+function drawPlate(it,h){
+  const g=it.c.getContext("2d");g.clearRect(0,0,256,64);
+  g.fillStyle="rgba(255,252,242,.97)";rr(g,3,5,250,54,22);g.fill();
+  g.lineWidth=3;g.strokeStyle="#cdb88a";g.stroke();
+  g.fillStyle="#2b333b";g.textAlign="center";g.textBaseline="middle";g.direction="ltr";
+  let fs=32;g.font="800 "+fs+"px sans-serif";
+  while(g.measureText(h.u).width>222&&fs>12){fs-=2;g.font="800 "+fs+"px sans-serif"}
+  g.fillText(h.u,128,33);
+  it.tex.needsUpdate=true;
+}
+let poolT=0;
+function updatePool(now){
+  if(now-poolT<250)return;poolT=now;
+  const cx=camera.position.x,cz=camera.position.z,tx=controls.target.x,tz=controls.target.z;
+  const list=[];
+  for(let n=0;n<visible;n++){
+    const h=houses[n];if(h.born!==0)continue;
+    const d=(h.x-tx)*(h.x-tx)+(h.z-tz)*(h.z-tz);
+    if(d<3600)list.push([d,n]);
+  }
+  list.sort((a,b)=>a[0]-b[0]);
+  const want=list.slice(0,POOL.length).map(a=>a[1]);
+  const wantSet=new Set(want);
+  const free=[];
+  POOL.forEach(it=>{if(it.n>=0&&!wantSet.has(it.n)||it.n>=visible){it.n=-1}});
+  const have=new Map();POOL.forEach(it=>{if(it.n>=0)have.set(it.n,it)});
+  POOL.forEach(it=>{if(it.n<0)free.push(it)});
+  want.forEach(n=>{
+    if(have.has(n))return;
+    const it=free.pop();if(!it)return;
+    const h=houses[n];it.n=n;drawPlate(it,h);
+    it.g.position.set(h.x,0,h.z);it.g.rotation.y=h.rot;
+    it.plate.position.set(0,h.h+1.25,h.w/2+.15);it.plate.rotation.x=-.75;
+  });
+  POOL.forEach(it=>{it.g.visible=it.n>=0});
+}
+
+/* ---------- الشخصية والمشي ---------- */
+const hero=new THREE.Group();
+(function(){
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(.34,.55,1.35,10),mat(0xf4f1e8));body.position.y=.7;body.castShadow=true;hero.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.28,10,8),mat(0xd9a47a));head.position.y=1.65;head.castShadow=true;hero.add(head);
+  const sc=new THREE.Mesh(new THREE.SphereGeometry(.34,10,6,0,Math.PI*2,0,Math.PI/2),mat(0xffffff));sc.position.y=1.7;sc.castShadow=true;hero.add(sc);
+  const ag=new THREE.Mesh(new THREE.TorusGeometry(.27,.04,6,14),mat(0x1a1a1a));ag.rotation.x=Math.PI/2;ag.position.y=1.76;hero.add(ag);
+  scene.add(hero);
+})();
+const NX=Math.floor(WW/CELL),NZ=Math.floor(WH/CELL),NXp=NX+1,NN=NXp*(NZ+1);
+const WALK=new Uint8Array(NN);
+for(let j=0;j<=NZ;j++)for(let i=0;i<=NX;i++){
+  const X=i*S,Z=j*S;let ok=inPoly(X,Z,BOUND)&&distRiver(X,Z)>=12;
+  if(ok)for(const l of LM)if(Math.hypot(l.x-X,l.y-Z)<8){ok=false;break}
+  WALK[j*NXp+i]=ok?1:0;
+}
+function nearestWalk(x,z){
+  let best=-1,bd=1e9;
+  const ci=Math.round(x/S),cj=Math.round(z/S);
+  for(let r=0;r<60&&best<0;r++){
+    for(let j=Math.max(0,cj-r);j<=Math.min(NZ,cj+r);j++)for(let i=Math.max(0,ci-r);i<=Math.min(NX,ci+r);i++){
+      const id=j*NXp+i;if(!WALK[id])continue;
+      const d=(i*S-x)*(i*S-x)+(j*S-z)*(j*S-z);if(d<bd){bd=d;best=id}
+    }
+  }
+  return best;
+}
+const BPOS=[];
+BR.forEach((b,k)=>{
+  BPOS.push([b.ax/K,b.ay/K],[b.bx/K,b.by/K]);
+  b.a0=nearestWalk(b.ax/K,b.ay/K);b.b0=nearestWalk(b.bx/K,b.by/K);
+});
+const NTOT=NN+BPOS.length;
+function nodePos(id){return id<NN?[(id%NXp)*S,((id/NXp)|0)*S]:BPOS[id-NN]}
+function findPath(sx,sz,gx,gz){
+  const start=nearestWalk(sx,sz),goal=nearestWalk(gx,gz);
+  const extra=new Map();const add=(a,b)=>{if(!extra.has(a))extra.set(a,[]);extra.get(a).push(b)};
+  BR.forEach((b,k)=>{if(visible>=b.need){const A=NN+2*k,Bn=A+1;add(A,Bn);add(Bn,A);add(A,b.a0);add(b.a0,A);add(Bn,b.b0);add(b.b0,Bn)}});
+  const g=new Float32Array(NTOT).fill(1e9),prev=new Int32Array(NTOT).fill(-1),closed=new Uint8Array(NTOT);
+  const gp=nodePos(goal);
+  const hf=id=>{const p=nodePos(id);return Math.hypot(p[0]-gp[0],p[1]-gp[1])};
+  const heap=[];
+  const push=(f,id)=>{heap.push([f,id]);let i=heap.length-1;while(i>0){const p=(i-1)>>1;if(heap[p][0]<=heap[i][0])break;[heap[p],heap[i]]=[heap[i],heap[p]];i=p}};
+  const pop=()=>{const top=heap[0],last=heap.pop();if(heap.length){heap[0]=last;let i=0;for(;;){let l=2*i+1,r=l+1,m=i;if(l<heap.length&&heap[l][0]<heap[m][0])m=l;if(r<heap.length&&heap[r][0]<heap[m][0])m=r;if(m===i)break;[heap[m],heap[i]]=[heap[i],heap[m]];i=m}}return top};
+  g[start]=0;push(hf(start),start);
+  let bestId=start,bestH=hf(start);
+  const nb=[];
+  while(heap.length){
+    const [,u]=pop();if(closed[u])continue;closed[u]=1;
+    const hu=hf(u);if(hu<bestH){bestH=hu;bestId=u}
+    if(u===goal){bestId=u;break}
+    nb.length=0;
+    if(u<NN){
+      const i=u%NXp,j=(u/NXp)|0;
+      if(i>0&&WALK[u-1])nb.push(u-1);if(i<NX&&WALK[u+1])nb.push(u+1);
+      if(j>0&&WALK[u-NXp])nb.push(u-NXp);if(j<NZ&&WALK[u+NXp])nb.push(u+NXp);
+    }
+    const ex=extra.get(u);if(ex)for(const e of ex)nb.push(e);
+    const pu=nodePos(u);
+    for(const v of nb){
+      if(closed[v])continue;
+      const pv=nodePos(v),nd=g[u]+Math.hypot(pu[0]-pv[0],pu[1]-pv[1]);
+      if(nd<g[v]){g[v]=nd;prev[v]=u;push(nd+hf(v),v)}
+    }
+  }
+  const pts=[];let c=bestId;
+  while(c!==-1){pts.push(nodePos(c));c=prev[c]}
+  pts.reverse();
+  return {pts,complete:bestId===goal};
+}
+let route=[],heroT=0;
+const startN=nearestWalk(CENTER.x/K+8,CENTER.y/K+8),sp0=nodePos(startN);
+hero.position.set(sp0[0],0,sp0[1]);
+function heroWalkTo(x,z,final){
+  const r=findPath(hero.position.x,hero.position.z,x,z);
+  route=r.pts.map(p=>({x:p[0],z:p[1]}));
+  if(r.complete&&final)route.push({x:final[0],z:final[1]});
+  if(!r.complete)toast("🌉 لازم تنفتح الجسور أول");
+}
+function stepHero(dt,now){
+  if(route.length){
+    const t=route[0],dx=t.x-hero.position.x,dz=t.z-hero.position.z,d=Math.hypot(dx,dz);
+    const sp=10*dt;
+    if(d<=sp){hero.position.x=t.x;hero.position.z=t.z;route.shift()}
+    else{hero.position.x+=dx/d*sp;hero.position.z+=dz/d*sp;
+      let a=Math.atan2(dx,dz),cur=hero.rotation.y,df=a-cur;while(df>Math.PI)df-=2*Math.PI;while(df<-Math.PI)df+=2*Math.PI;
+      hero.rotation.y=cur+df*Math.min(1,dt*12)}
+    heroT+=dt;hero.position.y=Math.abs(Math.sin(heroT*11))*.14;hero.rotation.z=Math.sin(heroT*11)*.05;
+  }else{hero.position.y=0;hero.rotation.z=0}
+}
+
+/* ---------- البيانات ---------- */
+function loadLocal(){try{return JSON.parse(localStorage.getItem(LS_KEY)||"[]")}catch(e){return[]}}
+function saveLocal(a){try{localStorage.setItem(LS_KEY,JSON.stringify(a))}catch(e){}}
+let ALL=[];
+function mergeBatches(){
+  const map=new Map();
+  for(const b of BATCHES.concat(loadLocal())){
+    if(!map.has(b.date))map.set(b.date,[]);
+    map.get(b.date).push(...b.users);
+  }
+  const seen=new Set();ALL=[];
+  [...map.keys()].sort().forEach(d=>{
+    const us=[];
+    for(const u of map.get(d)){const k=u.toLowerCase();if(!seen.has(k)){seen.add(k);us.push(u)}}
+    if(us.length)ALL.push({date:d,users:us});
+  });
+}
+let batchEnd=[],cellMap=new Map(),visible=0,shown=0;
+const animList=[];
+function build(){
+  houses=[];batchEnd=[];
+  ALL.forEach((b,bi)=>{
+    b.users.forEach(u=>{
+      if(houses.length>=CAP)return;
+      const s=slots[houses.length],r1=hash(hstr(u)),r2=hash(hstr(u)+5),r3=hash(hstr(u)+11);
+      houses.push({u,date:b.date,bi,x:s.x/K,z:s.y/K,i:s.i,j:s.j,n:houses.length+1,
+        w:4.2+r2*.8,h:r3>.82?7:3.4+r1*1.6,rot:Math.floor(r1*4)*Math.PI/2,
+        col:PAL[Math.floor(r2*PAL.length)],dist:districtOf(s.x,s.y),born:0});
+    });
+    batchEnd.push(houses.length);
+  });
+  cellMap=new Map();houses.forEach((h,n)=>cellMap.set(h.i*1000+h.j,n));
+  const c=new THREE.Color();
+  houses.forEach((h,n)=>{
+    c.setHex(h.col);bodyM.setColorAt(n,c);
+    for(let m=0;m<8;m++)merM.setColorAt(n*8+m,c);
+    writeHouse(n,1);
+  });
+  if(bodyM.instanceColor)bodyM.instanceColor.needsUpdate=true;
+  if(merM.instanceColor)merM.instanceColor.needsUpdate=true;
+  flushInst();
+  animList.length=0;
+}
+
+/* ---------- الواجهة ---------- */
+const LEVELS=[[0,"أرض فارغة بانتظار أول ساكن"],[1,"أول بيت 🏠"],[10,"قرية صغيرة"],[50,"حي جديد"],[150,"بلدة"],[400,"مدينة"],[800,"مدينة كبيرة"],[1500,"عاصمة"],[3000,"بغداد الكبرى 👑"]];
+function toast(t){const e=$("toast");e.textContent=t;e.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("on"),2800)}
+function updateUI(){
+  $("cnt").textContent=visible;
+  let lv=LEVELS[0][1];for(const l of LEVELS)if(visible>=l[0])lv=l[1];
+  $("lvl").textContent=lv;
+  const all=LM.concat(BR);
+  const locked=all.filter(l=>l.need>visible).sort((a,b)=>a.need-b.need)[0];
+  if(locked){
+    const prev=all.filter(l=>l.need<=visible).reduce((m,l)=>Math.max(m,l.need),0);
+    $("progBar").style.width=Math.min(100,(visible-prev)/(locked.need-prev)*100)+"%";
+    $("next").textContent="🔒 "+locked.name+" — باقي "+(locked.need-visible)+" متابع";
+  }else{$("progBar").style.width="100%";$("next").textContent="🎉 انفتحت كل المعالم!"}
+  const tl=$("tl");tl.max=ALL.length;tl.value=shown;
+  $("tlLbl").textContent=shown?("يوم "+shown+" · "+ALL[shown-1].date.slice(5)):"البداية";
+}
+function setShown(n,quiet){
+  n=Math.max(0,Math.min(ALL.length,n));
+  const before=visible;
+  shown=n;visible=n?batchEnd[n-1]:0;
+  if(visible>before){
+    const now=performance.now(),step=Math.min(40,2000/Math.max(1,visible-before));
+    for(let k=before;k<visible;k++){houses[k].born=now+(k-before)*step;writeHouse(k,0);animList.push(k)}
+    flushInst();
+    if(!quiet)LM.concat(BR).filter(l=>l.need>before&&l.need<=visible).forEach((l,i)=>setTimeout(()=>toast("🎉 انفتح: "+l.name),700+i*2600));
+  }
+  applyCounts(visible);
+  if(sel&&sel.h&&houses.indexOf(sel.h)>=visible){sel=null;$("sheet").style.display="none"}
+  refreshLandmarks(quiet===true&&before===0&&!window.__init);
+  updateUI();
+}
+function showSheet(t,a,b,link){
+  $("shT").textContent=t;$("shA").textContent=a;$("shB").textContent=b;
+  const L=$("shL");if(link){L.href=link;L.style.display=""}else L.style.display="none";
+  $("sheet").style.display="block";
+}
+let sel=null;
+const ring=new THREE.Mesh(new THREE.RingGeometry(3.4,3.95,36),new THREE.MeshBasicMaterial({color:0xc4552d,transparent:true,opacity:.9,side:THREE.DoubleSide,depthWrite:false}));
+ring.rotation.x=-Math.PI/2;ring.position.y=.2;ring.visible=false;scene.add(ring);
+
+function doorTarget(h){const lz=h.w/2+1.7;return [h.x+lz*Math.sin(h.rot),h.z+lz*Math.cos(h.rot)]}
+function selectHouse(h,fly){
+  sel={h};
+  showSheet("@"+h.u,"🏠 بيت رقم "+h.n+" — حي "+h.dist,"📅 انضم بتاريخ "+h.date,"https://www.instagram.com/"+encodeURIComponent(h.u)+"/");
+  const d=doorTarget(h);heroWalkTo(d[0],d[1],d);
+  if(fly)flyTo(h.x,h.z,24);
+}
+function selectLandmark(l){
+  sel={l};const ok=visible>=l.need;
+  showSheet((ok?l.emoji+" ":"🔒 ")+l.name,l.desc,ok?"✅ مفتوح":"ينفتح عند "+l.need+" متابع (باقي "+(l.need-visible)+")");
+  heroWalkTo(l.X,l.Z+0,null);
+}
+
+/* ---------- الكاميرا ---------- */
+let fly=null,follow=false;
+function flyTo(x,z,dist){
+  const v=camera.position.clone().sub(controls.target);
+  const az=Math.atan2(v.x,v.z),el=.85;
+  const to={t:new THREE.Vector3(x,0,z)};
+  to.c=new THREE.Vector3(x+Math.sin(az)*Math.cos(el)*dist,Math.sin(el)*dist,z+Math.cos(az)*Math.cos(el)*dist);
+  fly={t0:performance.now(),ms:900,ft:controls.target.clone(),fc:camera.position.clone(),to};
+}
+function fitCity(){
+  let x0=CENTER.x/K,x1=x0,z0=CENTER.y/K,z1=z0;
+  for(let n=0;n<visible;n++){const h=houses[n];x0=Math.min(x0,h.x);x1=Math.max(x1,h.x);z0=Math.min(z0,h.z);z1=Math.max(z1,h.z)}
+  const sx=Math.max(x1-x0,40)+30,sz=Math.max(z1-z0,40)+30,asp=camera.aspect;
+  const dist=Math.max(34,Math.max(sx/Math.min(1.2,asp)*.85,sz*1.05));
+  flyTo((x0+x1)/2,(z0+z1)/2,dist);
+}
+cv.addEventListener("pointerdown",()=>{fly=null});
+
+/* ---------- لمس واختيار ---------- */
+const ray=new THREE.Raycaster(),ndc=new THREE.Vector2(),gplane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+let down=null;
+cv.addEventListener("pointerdown",e=>{down={x:e.clientX,y:e.clientY,t:performance.now()}});
+cv.addEventListener("pointerup",e=>{
+  if(!down)return;
+  const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y);down=null;
+  if(moved<7)tap(e.clientX,e.clientY);
+});
+function tap(cx,cy){
+  ndc.set(cx/innerWidth*2-1,-(cy/innerHeight)*2+1);ray.setFromCamera(ndc,camera);
+  let bestD=1e9,bestH=null,bestL=null;
+  const hh=ray.intersectObject(bodyM);
+  for(const hit of hh){if(hit.instanceId!==undefined&&hit.instanceId<visible&&houses[hit.instanceId].born===0){bestD=hit.distance;bestH=houses[hit.instanceId];break}}
+  const roots=LM.map(l=>l.root);
+  const lh=ray.intersectObjects(roots,true);
+  for(const hit of lh){
+    let o=hit.object;while(o&&o.userData.lm===undefined)o=o.parent;
+    if(o&&hit.distance<bestD&&hit.object.parent&&hit.object.visible!==false){
+      const l=LM[o.userData.lm];
+      const grp=hit.object.parent;
+      if(isUp(hit.object,l.open)&&!l.open.visible)continue;
+      if(isUp(hit.object,l.lock)&&!l.lock.visible)continue;
+      bestD=hit.distance;bestL=l;bestH=null;break;
+    }
+  }
+  if(bestH){selectHouse(bestH,false);return}
+  if(bestL){selectLandmark(bestL);return}
+  sel=null;$("sheet").style.display="none";
+  const pt=new THREE.Vector3();
+  if(ray.ray.intersectPlane(gplane,pt)){const nid=nearestWalk(pt.x,pt.z),p=nodePos(nid);heroWalkTo(p[0],p[1],null)}
+}
+function isUp(o,anc){while(o){if(o===anc)return true;o=o.parent}return false}
+$("sheetX").onclick=()=>{sel=null;$("sheet").style.display="none"};
+
+/* بحث */
+function search(){
+  const q=$("q").value.trim().replace(/^@/,"").toLowerCase();if(!q)return;
+  const vis=houses.slice(0,visible);
+  const h=vis.find(x=>x.u.toLowerCase()===q)||vis.find(x=>x.u.toLowerCase().includes(q));
+  if(h){selectHouse(h,true);$("q").blur()}else toast("ما لكيت هذا اليوزر 🤔");
+}
+$("go").onclick=search;
+$("q").addEventListener("keydown",e=>{if(e.key==="Enter")search()});
+$("fit").onclick=fitCity;
+$("walk").onclick=()=>{follow=!follow;$("walk").classList.toggle("on",follow);
+  if(follow){flyTo(hero.position.x,hero.position.z,20);toast("🚶 الكاميرا تتبعك — دوس على أي مكان تمشي له")}};
+
+/* الشريط الزمني */
+let playing=null;
+$("tl").addEventListener("input",e=>{stopPlay();setShown(+e.target.value,true)});
+function stopPlay(){if(playing){clearInterval(playing);playing=null;$("play").textContent="▶"}}
+$("play").onclick=()=>{
+  if(playing){stopPlay();return}
+  $("play").textContent="⏸";setShown(0,true);fitCity();let k=0;
+  playing=setInterval(()=>{k++;setShown(k,false);fitCity();if(k>=ALL.length)stopPlay()},2200);
+};
+
+/* الإدارة */
+$("adminBtn").onclick=()=>$("admin").style.display="flex";
+$("closeAdmin").onclick=()=>$("admin").style.display="none";
+function today(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+$("addBatch").onclick=()=>{
+  const us=$("paste").value.split(/[\s,،;]+/).map(s=>s.replace(/^@/,"").replace(/[^\w.؀-ۿ]/g,"")).filter(Boolean);
+  if(!us.length){toast("الصق يوزرات أول");return}
+  const loc=loadLocal();loc.push({date:today(),users:us});saveLocal(loc);
+  const old=visible;mergeBatches();build();applyCounts(old);
+  setShown(ALL.length,false);$("paste").value="";$("admin").style.display="none";
+  toast("🏠 انضافت بيوت جديدة");fitCity();
+};
+$("copyData").onclick=()=>{
+  const txt="const BATCHES = [\n"+ALL.map(b=>'  {date:"'+b.date+'", users:'+JSON.stringify(b.users)+'}').join(",\n")+"\n];";
+  const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();
+  let ok=false;try{ok=document.execCommand("copy")}catch(e){}
+  ta.remove();
+  if(!ok&&navigator.clipboard)navigator.clipboard.writeText(txt).then(()=>toast("اننسخت ✅")).catch(()=>{});
+  else toast(ok?"اننسخت ✅":"ما اشتغل النسخ");
+};
+$("clearLocal").onclick=()=>{saveLocal([]);const old=visible;mergeBatches();build();visible=0;applyCounts(0);setShown(ALL.length,true);toast("انمسحت إضافات هذا الجهاز")};
+
+/* ---------- الحلقة ---------- */
+window.addEventListener("resize",()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()});
+const ease=t=>t<1?1+2.70158*Math.pow(t-1,3)+1.70158*Math.pow(t-1,2):1;
+let last=performance.now();
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  // نمو البيوت
+  if(animList.length){
+    for(let a=animList.length-1;a>=0;a--){
+      const n=animList[a],h=houses[n];if(!h){animList.splice(a,1);continue}
+      const t=(now-h.born)/550;
+      if(t<0)continue;
+      if(t>=1){h.born=0;writeHouse(n,1);animList.splice(a,1)}
+      else writeHouse(n,Math.max(.001,ease(t)));
+    }
+    flushInst();
+  }
+  // المعالم
+  for(const l of LM){
+    if(l.pop){const t=(now-l.pop)/900;if(t>=1){l.pop=0;l.root.scale.set(1,1,1)}else{const k=Math.max(.01,ease(t));l.root.scale.set(k,k,k)}}
+    if(l.open.userData.spin)l.open.userData.spin.rotation.z+=dt*.25;
+  }
+  // الشخصية
+  stepHero(dt,now);
+  if(follow&&!fly){
+    const dx=hero.position.x-controls.target.x,dz=hero.position.z-controls.target.z,k=1-Math.exp(-5*dt);
+    controls.target.x+=dx*k;controls.target.z+=dz*k;camera.position.x+=dx*k;camera.position.z+=dz*k;
+  }
+  // حركة الكاميرا
+  if(fly){
+    const t=Math.min(1,(now-fly.t0)/fly.ms),e=1-Math.pow(1-t,3);
+    controls.target.lerpVectors(fly.ft,fly.to.t,e);camera.position.lerpVectors(fly.fc,fly.to.c,e);
+    if(t>=1)fly=null;
+  }
+  controls.target.x=Math.max(0,Math.min(WX,controls.target.x));
+  controls.target.z=Math.max(0,Math.min(WZ,controls.target.z));
+  controls.update();
+  {const far=camera.position.distanceTo(controls.target)>95;if(far!==DSPR.vis){DSPR.vis=far;DSPR.forEach(sp=>sp.visible=far)}}
+  sun.position.copy(controls.target).add(SUNOFF);sun.target.position.copy(controls.target);sun.target.updateMatrixWorld();
+  // التحديد
+  if(sel){
+    const p=sel.h?{x:sel.h.x,z:sel.h.z}:{x:sel.l.X,z:sel.l.Z},pl=(Math.sin(now/220)+1)/2;
+    ring.visible=true;ring.position.x=p.x;ring.position.z=p.z;
+    const sc=(sel.l?2.6:1)*(1+pl*.18);ring.scale.set(sc,sc,sc);ring.material.opacity=.95-pl*.5;
+  }else ring.visible=false;
+  updatePool(now);
+  renderer.render(scene,camera);
+}
+
+/* ---------- تشغيل ---------- */
+mergeBatches();build();
+setShown(ALL.length,true);
+window.__init=true;
+fitCity();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
