@@ -98,7 +98,8 @@ if(typeof THREE==="undefined"||!THREE.OrbitControls){document.getElementById("er
 const BATCHES = [
   {date:"2026-11-16", users:["demo_ali","demo_zainab","demo_hassan","demo_noor","demo_omar","demo_sara","demo_karar","demo_maryam"]},
   {date:"2026-11-17", users:["demo_ahmed","demo_fatima","demo_mustafa","demo_huda","demo_yasser","demo_rana","demo_abbas","demo_layla","demo_zaid","demo_dina"]},
-  {date:"2026-11-18", users:["demo_hadi","demo_tuqa","demo_ibrahim","demo_ruqaya","demo_baqir","demo_alaa"]}
+  {date:"2026-11-18", users:["demo_hadi","demo_tuqa","demo_ibrahim","demo_ruqaya","demo_baqir","demo_alaa"]},
+  {date:"2026-11-19", users:["yousefalani_2"]}
 ];
 /* ============================================================ */
 
@@ -185,7 +186,23 @@ for(let j=0;j<NZc;j++)for(let i=0;i<NXc;i++){
   slots.push({x,y,i,j,k:Math.hypot(x-CENTER.x,y-CENTER.y)+hash(i*977+j*131)*10});
 }
 slots.sort((a,b)=>a.k-b.k);
-const CAP=slots.length;
+/* بيوت مثبتة على حدود بغداد: اليوزر : موقع تقريبي على الخريطة (بكسل اللقطة) */
+const PINNED={"yousefalani_2":[668,790]};
+const PINSLOT={};
+(function(){
+  for(const u in PINNED){
+    const tx=PINNED[u][0]*G,ty=PINNED[u][1]*G;
+    let bi=-1,bd=1e9;
+    slots.forEach((s,i)=>{
+      let edge=1e9;
+      for(let a=0;a<BOUND.length;a++){const b=BOUND[(a+1)%BOUND.length];const d=distSeg(s.x,s.y,BOUND[a].x,BOUND[a].y,b.x,b.y);if(d<edge)edge=d}
+      if(edge>9)return;
+      const d=Math.hypot(s.x-tx,s.y-ty);if(d<bd){bd=d;bi=i}
+    });
+    if(bi>=0)PINSLOT[u.toLowerCase()]=slots.splice(bi,1)[0];
+  }
+})();
+const CAP=slots.length+Object.keys(PINSLOT).length;
 
 /* ---------- المشهد ---------- */
 const renderer=new THREE.WebGLRenderer({antialias:true});
@@ -672,11 +689,13 @@ function mergeBatches(){
 let batchEnd=[],cellMap=new Map(),visible=0,shown=0;
 const animList=[];
 function build(){
-  houses=[];batchEnd=[];
+  houses=[];batchEnd=[];let ni=0;
   ALL.forEach((b,bi)=>{
     b.users.forEach(u=>{
       if(houses.length>=CAP)return;
-      const s=slots[houses.length],r1=hash(hstr(u)),r2=hash(hstr(u)+5),r3=hash(hstr(u)+11);
+      const s=PINSLOT[u.toLowerCase()]||slots[ni++];
+      if(!s)return;
+      const r1=hash(hstr(u)),r2=hash(hstr(u)+5),r3=hash(hstr(u)+11);
       houses.push({u,date:b.date,bi,x:s.x/K,z:s.y/K,i:s.i,j:s.j,n:houses.length+1,
         w:4.2+r2*.8,h:r3>.82?7:3.4+r1*1.6,rot:Math.floor(r1*4)*Math.PI/2,
         col:PAL[Math.floor(r2*PAL.length)],dist:districtOf(s.x,s.y),born:0});
