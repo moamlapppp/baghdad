@@ -172,9 +172,11 @@ const BOUND=[[661, 856], [665, 877], [668, 899], [648, 917], [640, 936], [648, 9
 function inPoly(x,y,P){let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const a=P[i],b=P[j];if((a.y>y)!==(b.y>y)&&x<(b.x-a.x)*(y-a.y)/(b.y-a.y)+a.x)c=!c}return c}
 
 /* ---------- أماكن البيوت (داخل حدود أمانة بغداد فقط) ---------- */
+const colRoad=i=>i%6===5||i%24===22,rowRoad=j=>j%6===5||j%24===22;
 const slots=[];
 const NXc=Math.floor(WW/CELL),NZc=Math.floor(WH/CELL);
 for(let j=0;j<NZc;j++)for(let i=0;i<NXc;i++){
+  if(colRoad(i)||rowRoad(j))continue;
   const x=i*CELL+CELL/2,y=j*CELL+CELL/2;
   if(!inPoly(x,y,BOUND))continue;
   if(distRiver(x,y)<14)continue;
@@ -215,6 +217,25 @@ const PINSLOT={},PINOPT={},PINTREE={};
   }
 })();
 const CAP=slots.length+Object.keys(PINSLOT).length;
+/* شبكة الشوارع: كل 6 خلايا شارع، وكل 24 شارع رئيسي عريض */
+const ROAD=new Uint8Array(NXc*NZc),ROADS=[];
+for(let j=0;j<NZc;j++)for(let i=0;i<NXc;i++){
+  if(!(colRoad(i)||rowRoad(j)))continue;
+  const x=i*CELL+CELL/2,y=j*CELL+CELL/2;
+  if(!inPoly(x,y,BOUND)||distRiver(x,y)<15)continue;
+  let bad=false;
+  for(const l of LM)if(Math.hypot(l.x-x,l.y-y)<12){bad=true;break}
+  if(bad)continue;
+  for(const b of BR)if(distSeg(x,y,b.ax,b.ay,b.bx,b.by)<5){bad=true;break}
+  if(bad)continue;
+  ROAD[j*NXc+i]=1;ROADS.push([i,j]);
+}
+const isR=(i,j)=>i>=0&&j>=0&&i<NXc&&j<NZc&&ROAD[j*NXc+i]===1;
+function faceRoad(i,j,r){
+  const c=[[1,0],[-1,0],[0,1],[0,-1]],o=Math.floor(r*4);
+  for(let d=1;d<=4;d++)for(let k=0;k<4;k++){const q=c[(k+o)%4];if(isR(i+q[0]*d,j+q[1]*d))return Math.atan2(q[0],q[1])}
+  return o*Math.PI/2;
+}
 
 /* ---------- المشهد ---------- */
 const renderer=new THREE.WebGLRenderer({antialias:true});
@@ -224,7 +245,7 @@ renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 const cv=renderer.domElement;cv.id="map";document.body.insertBefore(cv,document.body.firstChild);
 const scene=new THREE.Scene();
-const SKY=0xf4d9a8;
+const SKY=0xf0c48c;
 scene.background=new THREE.Color(SKY);
 scene.fog=new THREE.Fog(SKY,600,3200);
 const camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,.5,8000);
@@ -239,9 +260,9 @@ controls.target.set(CENTER.x/K,0,CENTER.y/K);
 camera.position.set(CENTER.x/K,46,CENTER.y/K+52);
 controls.update();
 
-scene.add(new THREE.HemisphereLight(0xfff4dc,0x9c8460,.62));
-const sun=new THREE.DirectionalLight(0xfff0cf,.8);
-const SUNOFF=new THREE.Vector3(55,85,38);
+scene.add(new THREE.HemisphereLight(0xffe9c8,0x8a6e4e,.6));
+const sun=new THREE.DirectionalLight(0xffd7a3,.9);
+const SUNOFF=new THREE.Vector3(70,58,40);
 sun.castShadow=true;
 sun.shadow.mapSize.set(1024,1024);
 sun.shadow.camera.left=-48;sun.shadow.camera.right=48;sun.shadow.camera.top=48;sun.shadow.camera.bottom=-48;
@@ -249,6 +270,11 @@ sun.shadow.camera.near=1;sun.shadow.camera.far=260;
 sun.shadow.bias=-0.0004;sun.shadow.normalBias=.35;
 scene.add(sun);scene.add(sun.target);
 
+const skyM=new THREE.Mesh(new THREE.SphereGeometry(2400,24,16),new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,depthTest:false,fog:false,
+  uniforms:{sd:{value:SUNOFF.clone().normalize()}},
+  vertexShader:"varying vec3 vp;void main(){vp=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
+  fragmentShader:"varying vec3 vp;uniform vec3 sd;void main(){vec3 d=normalize(vp);float h=clamp(d.y,0.,1.);vec3 hor=vec3(.94,.77,.55),mid=vec3(.93,.58,.40),top=vec3(.27,.43,.70);vec3 c=mix(hor,mid,smoothstep(0.,.16,h));c=mix(c,top,smoothstep(.1,.7,h));float s=max(dot(d,sd),0.);c+=vec3(1.,.7,.35)*pow(s,20.)*.5+vec3(1.,.92,.75)*pow(s,300.)*1.3;gl_FragColor=vec4(c,1.);}"}));
+skyM.renderOrder=-1000;skyM.frustumCulled=false;scene.add(skyM);
 const mats={};
 function mat(c,o){const k=c+JSON.stringify(o||{});return mats[k]||(mats[k]=new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.9,metalness:0},o||{})))}
 const boxG=new THREE.BoxGeometry(1,1,1);
@@ -278,9 +304,9 @@ const WX=WW/K, WZ=WH/K;
     const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color,roughness:rough,metalness:.05,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
     m.receiveShadow=true;scene.add(m);return m;
   }
-  ribbon(14,.05,0xa5c47e,1);
-  ribbon(10,.09,0x3f9cbd,.25);
-  ribbon(5,.12,0x6fc0da,.2);
+  ribbon(14,.05,0x9bb36f,1);
+  ribbon(10,.09,0x2b7f9a,.2);
+  ribbon(5,.12,0x4fa6c0,.15);
 })();
 
 /* نخيل على ضفاف النهر */
@@ -769,7 +795,7 @@ function build(){
       const pin=PINOPT[u.toLowerCase()],ty=(pin&&pin.two)?2:(r3>.82?2:(r3>.45?1:0)),sc=.92+hash(hstr(u)+23)*.16;
       HIDX[ty].push(houses.length);
       houses.push({u,date:b.date,bi,x:s.x/K,z:s.y/K,i:s.i,j:s.j,n:houses.length+1,t:ty,li:tc[ty]++,s:sc,
-        w:4.6*sc,h:HH[ty]*sc,rot:Math.floor(r1*4)*Math.PI/2,
+        w:4.6*sc,h:HH[ty]*sc,rot:faceRoad(s.i,s.j,r1),
         col:PAL[Math.floor(r2*PAL.length)],dist:districtOf(s.x,s.y),born:0});
     });
     batchEnd.push(houses.length);
@@ -938,6 +964,127 @@ $("copyData").onclick=()=>{
 };
 $("clearLocal").onclick=()=>{saveLocal([]);const old=visible;mergeBatches();build();visible=0;applyCounts(0);setShown(ALL.length,true);toast("انمسحت إضافات هذا الجهاز")};
 
+/* ---------- الشوارع بطابع سان أندرياس ---------- */
+(function(){
+  function Acc(){return{p:[],n:[],c:[],i:[]}}
+  function quad(a,x0,z0,x1,z1,y,c){const o=a.p.length/3;a.p.push(x0,y,z0,x1,y,z0,x1,y,z1,x0,y,z1);for(let k=0;k<4;k++){a.n.push(0,1,0);a.c.push(c[0],c[1],c[2])}a.i.push(o,o+2,o+1,o,o+3,o+2)}
+  function box(a,cx,cy,cz,w,h,d,c){const P=boxG.attributes.position,N=boxG.attributes.normal,I=boxG.index,o=a.p.length/3;
+    for(let k=0;k<P.count;k++){a.p.push(P.getX(k)*w+cx,P.getY(k)*h+cy,P.getZ(k)*d+cz);a.n.push(N.getX(k),N.getY(k),N.getZ(k));a.c.push(c[0],c[1],c[2])}
+    for(let k=0;k<I.count;k++)a.i.push(I.getX(k)+o)}
+  function mesh(a,po,sh){const g=new THREE.BufferGeometry();
+    g.setAttribute("position",new THREE.Float32BufferAttribute(a.p,3));g.setAttribute("normal",new THREE.Float32BufferAttribute(a.n,3));g.setAttribute("color",new THREE.Float32BufferAttribute(a.c,3));g.setIndex(a.i);
+    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.95,metalness:0,side:THREE.DoubleSide,polygonOffset:!!po,polygonOffsetFactor:po||0,polygonOffsetUnits:po||0}));
+    m.receiveShadow=true;m.frustumCulled=false;scene.add(m);return m}
+  const AS=Acc(),LN=Acc(),SW=Acc(),lamps=[],palms=[];
+  const hh=CELL/K/2,YEL=[.95,.74,.14],WHT=[.9,.88,.8],CURB=[.72,.69,.63];
+  for(const[i,j]of ROADS){
+    const cx=(i*CELL+CELL/2)/K,cz=(j*CELL+CELL/2)/K,v=colRoad(i),hz=rowRoad(j);
+    const g=.2+hash(i*53+j*17)*.035;
+    quad(AS,cx-hh,cz-hh,cx+hh,cz+hh,.06,[g,g,g+.015]);
+    if(v&&hz)continue;
+    const vert=v;
+    const A=vert?isR(i-1,j):isR(i,j-1),Bn=vert?isR(i+1,j):isR(i,j+1);
+    const av=vert?(i%24>=22):(j%24>=22);
+    // أرصفة
+    for(const sd of[-1,1]){
+      if(sd<0?A:Bn)continue;
+      if(vert)box(SW,cx+sd*(hh-.35),.1,cz,.7,.2,hh*2,CURB);else box(SW,cx,.1,cz+sd*(hh-.35),hh*2,.2,.7,CURB);
+    }
+    // خطوط
+    if(A&&vert||A&&!vert){ // خط أصفر مزدوج في الشارع العريض
+      if(vert){quad(LN,cx-hh-.2,cz-hh,cx-hh-.06,cz+hh,.08,YEL);quad(LN,cx-hh+.06,cz-hh,cx-hh+.2,cz+hh,.08,YEL)}
+      else{quad(LN,cx-hh,cz-hh-.2,cx+hh,cz-hh-.06,.08,YEL);quad(LN,cx-hh,cz-hh+.06,cx+hh,cz-hh+.2,.08,YEL)}
+    }else if(!Bn){
+      if(vert)quad(LN,cx-.09,cz-1.7,cx+.09,cz+1.7,.08,WHT);else quad(LN,cx-1.7,cz-.09,cx+1.7,cz+.09,.08,WHT);
+    }
+    // ممرات مشاة قرب التقاطعات
+    for(const dz of[-1,1]){
+      const ni=vert?i:i+dz,nj=vert?j+dz:j;
+      if(!(isR(ni,nj)&&colRoad(ni)&&rowRoad(nj)))continue;
+      for(let k=0;k<6;k++){const o=-3+k*1.2;
+        if(vert)quad(LN,cx+o-.3,cz+dz*(hh-1.9)-(dz<0?0:0),cx+o+.3,cz+dz*(hh-.2),.08,WHT);
+        else quad(LN,cx+dz*(hh-1.9),cz+o-.3,cx+dz*(hh-.2),cz+o+.3,.08,WHT);
+      }
+    }
+    // مصابيح ونخيل
+    const side=((i+j)&1)?1:-1,ok=side<0?!A:!Bn;
+    if(av&&ok&&(vert?j:i)%2===0&&(side<0?!A:!Bn)){
+      palms.push(vert?[cx+side*(hh-.35),cz,3.6+hash(i+j*7)*1.6]:[cx,cz+side*(hh-.35),3.6+hash(i+j*7)*1.6]);
+    }else if(ok&&(i+j)%3===0){
+      lamps.push(vert?{x:cx+side*(hh-.35),z:cz,r:Math.atan2(0,-side)}:{x:cx,z:cz+side*(hh-.35),r:Math.atan2(side,0)});
+    }
+  }
+  mesh(AS,-3);mesh(LN,-6);const swm=mesh(SW,0);
+  // مصابيح الشارع
+  if(lamps.length){
+    const la=[];pc(la,.08,4.4,0,2.2,0,[.25,.25,.28]);pb(la,1.3,.1,.1,.65,4.35,0,[.25,.25,.28]);pb(la,.55,.14,.34,1.25,4.28,0,[3,2.6,1.7]);
+    const lm=new THREE.InstancedMesh(mergeParts(la),new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7}),lamps.length);
+    lamps.forEach((l,n)=>{_q.setFromAxisAngle(UP,l.r);_p.set(l.x,0,l.z);_s.set(1,1,1);_m.compose(_p,_q,_s);lm.setMatrixAt(n,_m)});
+    lm.frustumCulled=false;scene.add(lm);
+  }
+  // نخيل الشوارع الرئيسية
+  if(palms.length){
+    const tr=new THREE.InstancedMesh(new THREE.CylinderGeometry(.18,.3,1,6),mat(0x7a5a38),palms.length);
+    const cr=new THREE.InstancedMesh(new THREE.SphereGeometry(1.9,7,5),mat(0x3f8a3a),palms.length);
+    palms.forEach((t,n)=>{
+      _q.identity();_p.set(t[0],t[2]/2,t[1]);_s.set(1,t[2],1);_m.compose(_p,_q,_s);tr.setMatrixAt(n,_m);
+      _p.set(t[0],t[2]+.3,t[1]);_s.set(1,.38,1);_m.compose(_p,_q,_s);cr.setMatrixAt(n,_m);
+    });
+    tr.castShadow=cr.castShadow=true;tr.frustumCulled=cr.frustumCulled=false;scene.add(tr);scene.add(cr);
+  }
+})();
+
+/* ---------- سيارات تمشي بالشوارع ---------- */
+const CARN=ROADS.length?150:0,CARC=[0xf2a33a,0xffffff,0xf2a33a,0xc23b3b,0x2f5fa8,0x202225,0xd8d8d8,0x3f8a5a,0xe6c33a,0x7b3fa0];
+const carA=[];
+{const dk=[.08,.08,.08];
+ pb(carA,1.9,.75,4.2,0,.7,0,WALL);pb(carA,1.6,.14,1.9,0,1.8,-.15,WALL);pb(carA,1.7,.52,2.0,0,1.48,-.15,GLASS);
+ for(const sx of[-1,1])for(const sz of[-1.3,1.3])pb(carA,.3,.75,.75,sx*.98,.38,sz,dk);
+ pb(carA,.4,.2,.1,-.6,.78,2.12,[3,2.8,2]);pb(carA,.4,.2,.1,.6,.78,2.12,[3,2.8,2]);pb(carA,.4,.18,.1,-.6,.78,-2.12,[2.2,.2,.2]);pb(carA,.4,.18,.1,.6,.78,-2.12,[2.2,.2,.2]);}
+const carM=new THREE.InstancedMesh(mergeParts(carA),HMAT,Math.max(1,CARN));
+carM.castShadow=true;carM.receiveShadow=true;carM.frustumCulled=false;carM.count=CARN;scene.add(carM);
+const cars=[],CW=CELL/K,cwx=i=>(i*CELL+CELL/2)/K;
+function carDirs(c){const o=[];for(const d of[[1,0],[-1,0],[0,1],[0,-1]]){if(d[0]===-c.di&&d[1]===-c.dj)continue;if(isR(c.ci+d[0],c.cj+d[1]))o.push(d)}return o}
+function spawnCar(c){
+  const T=controls.target;
+  for(let k=0;k<40;k++){
+    const r=ROADS[Math.floor(Math.random()*ROADS.length)];
+    if(Math.hypot(cwx(r[0])-T.x,cwx(r[1])-T.z)>(k<39?200:1e9))continue;
+    c.ci=r[0];c.cj=r[1];c.di=1;c.dj=0;
+    const o=carDirs({ci:c.ci,cj:c.cj,di:0,dj:0});
+    if(!o.length)continue;
+    const d=o[Math.floor(Math.random()*o.length)];c.di=d[0];c.dj=d[1];
+    c.t=Math.random();c.spd=5+Math.random()*5;c.px=cwx(c.ci);c.pz=cwx(c.cj);c.yaw=Math.atan2(c.di,c.dj);c.fresh=1;return;
+  }
+}
+if(CARN){
+  const cc=new THREE.Color();
+  for(let n=0;n<CARN;n++){const c={};spawnCar(c);cars.push(c);cc.setHex(CARC[n%CARC.length]);carM.setColorAt(n,cc)}
+  if(carM.instanceColor)carM.instanceColor.needsUpdate=true;
+}
+function updateTraffic(dt){
+  if(!CARN)return;
+  const T=controls.target;
+  for(let n=0;n<CARN;n++){
+    const c=cars[n];
+    if(c.ci===undefined){spawnCar(c);continue}
+    c.t+=c.spd*dt/CW;
+    if(c.t>=1){
+      c.t-=1;c.ci+=c.di;c.cj+=c.dj;
+      const o=carDirs(c);
+      if(!o.length){c.di=-c.di;c.dj=-c.dj;if(!isR(c.ci+c.di,c.cj+c.dj))spawnCar(c)}
+      else{const f=o.find(d=>d[0]===c.di&&d[1]===c.dj);const d=(f&&Math.random()<.65)?f:o[Math.floor(Math.random()*o.length)];c.di=d[0];c.dj=d[1]}
+    }
+    if(Math.hypot(c.px-T.x,c.pz-T.z)>260){spawnCar(c);}
+    const tx=cwx(c.ci)+c.di*c.t*CW+(-c.dj)*1.7,tz=cwx(c.cj)+c.dj*c.t*CW+c.di*1.7;
+    if(c.fresh){c.px=tx;c.pz=tz;c.fresh=0}
+    const k=Math.min(1,dt*8);c.px+=(tx-c.px)*k;c.pz+=(tz-c.pz)*k;
+    let dy=Math.atan2(c.di,c.dj)-c.yaw;while(dy>Math.PI)dy-=2*Math.PI;while(dy<-Math.PI)dy+=2*Math.PI;c.yaw+=dy*Math.min(1,dt*7);
+    _qy.setFromAxisAngle(UP,c.yaw);_p.set(c.px,.1,c.pz);_s.set(1,1,1);_m.compose(_p,_qy,_s);carM.setMatrixAt(n,_m);
+  }
+  carM.instanceMatrix.needsUpdate=true;
+}
+
 /* ---------- الحلقة ---------- */
 window.addEventListener("resize",()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()});
 const ease=t=>t<1?1+2.70158*Math.pow(t-1,3)+1.70158*Math.pow(t-1,2):1;
@@ -962,6 +1109,8 @@ function loop(now){
     if(l.pop){const t=(now-l.pop)/900;if(t>=1){l.pop=0;l.root.scale.set(1,1,1)}else{const k=Math.max(.01,ease(t));l.root.scale.set(k,k,k)}}
     if(l.open.userData.spin)l.open.userData.spin.rotation.z+=dt*.25;
   }
+  skyM.position.copy(camera.position);
+  updateTraffic(dt);
   // الشخصية
   stepHero(dt,now);
   DECO.forEach(d=>{d.g.userData.star.rotation.y+=dt*1.2});
