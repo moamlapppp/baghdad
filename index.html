@@ -310,9 +310,60 @@ const WX=WW/K, WZ=WH/K;
 /* ---------- البيوت (طين وشرفات) ---------- */
 const _m=new THREE.Matrix4(),_p=new THREE.Vector3(),_q=new THREE.Quaternion(),_s=new THREE.Vector3(),_qy=new THREE.Quaternion(),UP=new THREE.Vector3(0,1,0);
 function inst(cap,mt,shadow){const m=new THREE.InstancedMesh(boxG,mt,cap);m.castShadow=shadow!==false;m.receiveShadow=true;m.count=0;m.frustumCulled=false;scene.add(m);return m}
-const matW=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1});
-const bodyM=inst(CAP,matW),merM=inst(CAP*8,matW),doorM=inst(CAP,mat(0x5b3a1e)),winM=inst(CAP*2,mat(0x3b2a1c)),padM=inst(CAP,mat(0xa68d66),false);
-const MERL=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+const padM=inst(CAP,mat(0xa68d66),false);
+/* ---- بيت بغدادي مفصّل (3 أنواع): هندسة مدمجة بألوان رؤوس، ونسخة لكل بيت ---- */
+const HH=[3.6,4.8,7.4];
+let HIDX=[[],[],[]];
+function mergeParts(parts){
+  const pos=[],nor=[],col=[],idx=[];let off=0;
+  for(const p of parts){
+    const g=p.g.clone();g.applyMatrix4(p.m);
+    const P=g.attributes.position,N=g.attributes.normal;
+    for(let i=0;i<P.count;i++){pos.push(P.getX(i),P.getY(i),P.getZ(i));nor.push(N.getX(i),N.getY(i),N.getZ(i));col.push(p.c[0],p.c[1],p.c[2])}
+    const I=g.index;for(let i=0;i<I.count;i++)idx.push(I.getX(i)+off);
+    off+=P.count;g.dispose();
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute("normal",new THREE.Float32BufferAttribute(nor,3));
+  geo.setAttribute("color",new THREE.Float32BufferAttribute(col,3));
+  geo.setIndex(idx);
+  return geo;
+}
+const _cg=new THREE.CylinderGeometry(1,1,1,12),_ax=new THREE.Vector3(1,0,0);
+function pb(a,w,h,d,x,y,z,c){a.push({g:boxG,m:new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion(),new THREE.Vector3(w,h,d)),c})}
+function pc(a,r,h,x,y,z,c,rx){a.push({g:_cg,m:new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion().setFromAxisAngle(_ax,rx||0),new THREE.Vector3(r,h,r)),c})}
+const WALL=[1,1,1],TRIM=[1.22,1.17,1.06],DOORC=[.3,.18,.1],GLASS=[.1,.14,.22],WOOD=[.34,.2,.11],METAL=[1.5,1.5,1.6];
+function houseGeo(t){
+  const a=[],H=HH[t],W=4.6,hw=W/2;
+  pb(a,W,H,W,0,H/2,0,WALL);                                   // الجدران
+  pb(a,W+.22,.5,W+.22,0,.25,0,TRIM);                          // قاعدة
+  pb(a,W+.26,.22,W+.26,0,t===2?3.75:H-.6,0,TRIM);             // إطار أفقي
+  pb(a,W+.45,.32,W+.45,0,H+.16,0,TRIM);                       // حافة السطح
+  for(const m of[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]])pb(a,.7,.7,.7,m[0]*(hw-.05),H+.67,m[1]*(hw-.05),WALL); // شرفات الطين
+  pb(a,1.6,2.8,.3,0,1.4,hw+.04,TRIM);                         // إطار الباب
+  pb(a,1.1,2.1,.22,0,1.05,hw+.18,DOORC);                      // الباب
+  pc(a,.55,.22,0,2.1,hw+.18,DOORC,Math.PI/2);                 // قوس الباب
+  pb(a,2.1,.2,.9,0,.1,hw+.5,TRIM);                            // عتبة
+  const win=(x,y)=>{pb(a,1.25,1.25,.2,x,y,hw+.06,TRIM);pb(a,.9,.9,.26,x,y,hw+.11,GLASS);pb(a,1.4,.14,.36,x,y-.68,hw+.1,TRIM)};
+  const side=y=>{for(const sx of[-1,1]){pb(a,.2,1.25,1.25,sx*(hw+.05),y,0,TRIM);pb(a,.26,.9,.9,sx*(hw+.1),y,0,GLASS)}pb(a,1.25,1.25,.2,0,y,-(hw+.05),TRIM);pb(a,.9,.9,.26,0,y,-(hw+.1),GLASS)};
+  const wy=t===1?2.6:2.3;
+  win(-1.5,wy);win(1.5,wy);side(wy);
+  const tank=(x,z)=>{pb(a,.9,.35,.9,x,H+.32+.175,z,TRIM);pc(a,.55,1.1,x,H+.32+.35+.55,z,METAL)};
+  const stair=(x,z)=>{pb(a,1.4,1.2,1.4,x,H+.32+.6,z,WALL);pb(a,1.55,.14,1.55,x,H+.32+1.27,z,TRIM)};
+  if(t===0)tank(1.2,-1.1);
+  if(t===1){stair(-1.1,-1.0);pc(a,.4,.08,1.2,H+.32+.75,-1.2,METAL,.6);pb(a,.08,.7,.08,1.2,H+.32+.35,-1.2,METAL)}
+  if(t===2){
+    win(-1.65,5.3);win(1.65,5.3);                              // نوافذ الطابق الثاني
+    pb(a,1.9,1.5,.9,0,5.0,hw+.45,WOOD);                        // شناشيل خشبية
+    pb(a,2.1,.18,1.05,0,4.2,hw+.5,TRIM);pb(a,2.1,.2,1.05,0,5.85,hw+.5,TRIM);
+    pb(a,.55,.85,.15,-.45,5.05,hw+.92,GLASS);pb(a,.55,.85,.15,.45,5.05,hw+.92,GLASS);
+    stair(-1.1,-1.0);tank(1.2,-1.1);
+  }
+  return mergeParts(a);
+}
+const HMAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.95,metalness:0});
+const HM=[0,1,2].map(t=>{const m=new THREE.InstancedMesh(houseGeo(t),HMAT,CAP);m.castShadow=true;m.receiveShadow=true;m.count=0;m.frustumCulled=false;scene.add(m);return m});
 const PAL=[0xdcc08c,0xe4cb99,0xd2b27a,0xe9d4a9,0xcba46a,0xd8b98a];
 let houses=[];
 /* علامات حدود أمانة بغداد */
@@ -341,25 +392,17 @@ for(const u in PINTREE){const t=PINTREE[u],g=new THREE.Group();g.position.set(t.
 function updateDeco(){DECO.forEach(d=>{const hi=houses.findIndex(h=>h.u.toLowerCase()===d.u);d.g.visible=hi>=0&&hi<visible})}
 
 function writeHouse(n,k){
-  const h=houses[n],w=h.w,H=h.h,y0=.12;
-  _q.identity();
-  _p.set(h.x,y0+H*k/2,h.z);_s.set(w*k,H*k,w*k);_m.compose(_p,_q,_s);bodyM.setMatrixAt(n,_m);
-  _p.set(h.x,.06,h.z);_s.set(S*k,.12,S*k);_m.compose(_p,_q,_s);padM.setMatrixAt(n,_m);
-  const o=w/2-.35;
-  for(let m=0;m<8;m++){
-    _p.set(h.x+MERL[m][0]*o,y0+(H+.35)*k,h.z+MERL[m][1]*o);_s.set(.7*k,.7*k,.7*k);_m.compose(_p,_q,_s);merM.setMatrixAt(n*8+m,_m);
-  }
+  const h=houses[n],f=h.s*k;
   _qy.setFromAxisAngle(UP,h.rot);
-  const cs=Math.cos(h.rot),sn=Math.sin(h.rot);
-  let lx=0,lz=w/2+.05;
-  _p.set(h.x+lx*cs+lz*sn,y0+1.1*k,h.z-lx*sn+lz*cs);_s.set(1.3*k,2.2*k,.2*k);_m.compose(_p,_qy,_s);doorM.setMatrixAt(n,_m);
-  for(let side=0;side<2;side++){
-    lx=side?1.5:-1.5;
-    _p.set(h.x+lx*cs+lz*sn,y0+H*.62*k,h.z-lx*sn+lz*cs);_s.set(.9*k,.9*k,.2*k);_m.compose(_p,_qy,_s);winM.setMatrixAt(n*2+side,_m);
-  }
+  _p.set(h.x,.12,h.z);_s.set(f,f,f);_m.compose(_p,_qy,_s);HM[h.t].setMatrixAt(h.li,_m);
+  _q.identity();_p.set(h.x,.06,h.z);_s.set(S*k,.12,S*k);_m.compose(_p,_q,_s);padM.setMatrixAt(n,_m);
 }
-function flushInst(){bodyM.instanceMatrix.needsUpdate=true;merM.instanceMatrix.needsUpdate=true;doorM.instanceMatrix.needsUpdate=true;winM.instanceMatrix.needsUpdate=true;padM.instanceMatrix.needsUpdate=true}
-function applyCounts(v){bodyM.count=v;merM.count=v*8;doorM.count=v;winM.count=v*2;padM.count=v}
+function flushInst(){HM.forEach(m=>{m.instanceMatrix.needsUpdate=true});padM.instanceMatrix.needsUpdate=true}
+function applyCounts(v){
+  const c=[0,0,0];for(let n=0;n<v&&n<houses.length;n++)c[houses[n].t]++;
+  HM.forEach((m,t)=>{m.count=c[t];m.castShadow=v<1200});
+  padM.count=v;
+}
 
 /* ---------- المعالم ثلاثية الأبعاد ---------- */
 const stone=0xd8cdb0,gold=0xd9a521;
@@ -600,7 +643,7 @@ function updatePool(now){
     const it=free.pop();if(!it)return;
     const h=houses[n];it.n=n;drawPlate(it,h);
     it.g.position.set(h.x,0,h.z);it.g.rotation.y=h.rot;
-    it.plate.position.set(0,h.h+1.25,h.w/2+.15);it.plate.rotation.x=-.75;
+    it.plate.position.set(0,h.h+1.5,h.w/2+.3);it.plate.rotation.x=-.75;
   });
   POOL.forEach(it=>{it.g.visible=it.n>=0});
 }
@@ -716,28 +759,25 @@ function mergeBatches(){
 let batchEnd=[],cellMap=new Map(),visible=0,shown=0;
 const animList=[];
 function build(){
-  houses=[];batchEnd=[];let ni=0;
+  houses=[];batchEnd=[];let ni=0;HIDX=[[],[],[]];const tc=[0,0,0];
   ALL.forEach((b,bi)=>{
     b.users.forEach(u=>{
       if(houses.length>=CAP)return;
       const s=PINSLOT[u.toLowerCase()]||slots[ni++];
       if(!s)return;
       const r1=hash(hstr(u)),r2=hash(hstr(u)+5),r3=hash(hstr(u)+11);
-      houses.push({u,date:b.date,bi,x:s.x/K,z:s.y/K,i:s.i,j:s.j,n:houses.length+1,
-        w:4.2+r2*.8,h:(PINOPT[u.toLowerCase()]&&PINOPT[u.toLowerCase()].two)?7.4:(r3>.82?7:3.4+r1*1.6),rot:Math.floor(r1*4)*Math.PI/2,
+      const pin=PINOPT[u.toLowerCase()],ty=(pin&&pin.two)?2:(r3>.82?2:(r3>.45?1:0)),sc=.92+hash(hstr(u)+23)*.16;
+      HIDX[ty].push(houses.length);
+      houses.push({u,date:b.date,bi,x:s.x/K,z:s.y/K,i:s.i,j:s.j,n:houses.length+1,t:ty,li:tc[ty]++,s:sc,
+        w:4.6*sc,h:HH[ty]*sc,rot:Math.floor(r1*4)*Math.PI/2,
         col:PAL[Math.floor(r2*PAL.length)],dist:districtOf(s.x,s.y),born:0});
     });
     batchEnd.push(houses.length);
   });
   cellMap=new Map();houses.forEach((h,n)=>cellMap.set(h.i*1000+h.j,n));
-  const c=new THREE.Color(),cm=new THREE.Color();
-  houses.forEach((h,n)=>{
-    c.setHex(h.col);bodyM.setColorAt(n,c);cm.copy(c).multiplyScalar(1.1);
-    for(let m=0;m<8;m++)merM.setColorAt(n*8+m,cm);
-    writeHouse(n,1);
-  });
-  if(bodyM.instanceColor)bodyM.instanceColor.needsUpdate=true;
-  if(merM.instanceColor)merM.instanceColor.needsUpdate=true;
+  const c=new THREE.Color();
+  houses.forEach((h,n)=>{c.setHex(h.col);HM[h.t].setColorAt(h.li,c);writeHouse(n,1)});
+  HM.forEach(m=>{if(m.instanceColor)m.instanceColor.needsUpdate=true});
   flushInst();
   animList.length=0;
 }
@@ -826,8 +866,12 @@ cv.addEventListener("pointerup",e=>{
 function tap(cx,cy){
   ndc.set(cx/innerWidth*2-1,-(cy/innerHeight)*2+1);ray.setFromCamera(ndc,camera);
   let bestD=1e9,bestH=null,bestL=null;
-  const hh=ray.intersectObject(bodyM);
-  for(const hit of hh){if(hit.instanceId!==undefined&&hit.instanceId<visible&&houses[hit.instanceId].born===0){bestD=hit.distance;bestH=houses[hit.instanceId];break}}
+  const hh=ray.intersectObjects(HM);
+  for(const hit of hh){
+    if(hit.instanceId===undefined)continue;
+    const hn=HIDX[HM.indexOf(hit.object)][hit.instanceId];
+    if(hn!==undefined&&hn<visible&&houses[hn].born===0){bestD=hit.distance;bestH=houses[hn];break}
+  }
   const roots=LM.map(l=>l.root);
   const lh=ray.intersectObjects(roots,true);
   for(const hit of lh){
