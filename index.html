@@ -62,7 +62,7 @@ body.gm .top,body.gm .bar,body.gm #sheet{display:none!important}
 
 <div class="top">
   <div>
-    <h1>🏙️ بغداد — مدينة المتابعين <small style="font-size:10px;opacity:.7">v6</small></h1>
+    <h1>🏙️ بغداد — مدينة المتابعين <small style="font-size:10px;opacity:.7">v7</small></h1>
     <div class="lvl" id="lvl"></div>
     <div class="prog"><i id="progBar"></i></div>
     <div class="next" id="next"></div>
@@ -326,8 +326,14 @@ const WX=WW/K, WZ=WH/K;
     m.receiveShadow=true;scene.add(m);return m;
   }
   ribbon(14,.05,0x9bb36f,1);
-  ribbon(10,.09,0x2b7f9a,.08).material.metalness=.35;
-  ribbon(5,.12,0x4fa6c0,.06).material.metalness=.4;
+  const WATU={value:0};
+  function waterize(m){m.material.onBeforeCompile=sh=>{sh.uniforms.uT=WATU;
+    sh.vertexShader=sh.vertexShader.replace("#include <common>","#include <common>\nvarying vec3 vWp;").replace("#include <begin_vertex>","#include <begin_vertex>\nvWp=(modelMatrix*vec4(transformed,1.)).xyz;");
+    sh.fragmentShader=sh.fragmentShader.replace("#include <common>","#include <common>\nuniform float uT;varying vec3 vWp;").replace("#include <color_fragment>","#include <color_fragment>\nfloat rp=sin(vWp.x*.35+uT*1.3)*sin(vWp.z*.3-uT*1.1)+.5*sin((vWp.x+vWp.z)*.8+uT*2.1)+.35*sin(vWp.x*1.7-uT*3.0);diffuseColor.rgb*=.92+.14*rp;diffuseColor.rgb+=vec3(.5,.55,.6)*pow(max(rp-.9,0.),2.)*.6;");
+  }}
+  window.__WATU=WATU;
+  const w1=ribbon(10,.09,0x2b7f9a,.08);w1.material.metalness=.35;waterize(w1);
+  const w2=ribbon(5,.12,0x4fa6c0,.06);w2.material.metalness=.4;waterize(w2);
 })();
 
 /* نخيل على ضفاف النهر */
@@ -697,13 +703,31 @@ function updatePool(now){
 
 /* ---------- الشخصية والمشي ---------- */
 const hero=new THREE.Group();
-(function(){
-  const body=new THREE.Mesh(new THREE.CylinderGeometry(.34,.55,1.35,10),mat(0xf4f1e8));body.position.y=.7;body.castShadow=true;hero.add(body);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(.28,10,8),mat(0xd9a47a));head.position.y=1.65;head.castShadow=true;hero.add(head);
-  const sc=new THREE.Mesh(new THREE.SphereGeometry(.34,10,6,0,Math.PI*2,0,Math.PI/2),mat(0xffffff));sc.position.y=1.7;sc.castShadow=true;hero.add(sc);
-  const ag=new THREE.Mesh(new THREE.TorusGeometry(.27,.04,6,14),mat(0x1a1a1a));ag.rotation.x=Math.PI/2;ag.position.y=1.76;hero.add(ag);
-  scene.add(hero);
-})();
+scene.add(hero);
+let OUT=0;try{OUT=(+localStorage.getItem("baghdad_out"))||0}catch(e){}
+const OUTN=["ثوب وغترة","ملابس عصرية","بدلة رياضية"];
+function buildHero(o){
+  for(let i=hero.children.length-1;i>=0;i--)hero.remove(hero.children[i]);
+  const SK=0xd9a47a,TC=[0xf4f1e8,0x8c2f2f,0x2f8f5a][o],LC=[0xf4f1e8,0x23304a,0x1c1c1c][o];
+  const add=(g,c,x,y,z,p)=>{const m=new THREE.Mesh(g,mat(c));m.position.set(x,y,z);m.castShadow=true;(p||hero).add(m);return m};
+  const bx=(w,h,d)=>new THREE.BoxGeometry(w,h,d),pv=(x,y)=>{const g=new THREE.Group();g.position.set(x,y,0);hero.add(g);return g};
+  const legs=[],arms=[];
+  for(const sx of[-1,1]){
+    const l=pv(sx*.14,.85);add(bx(.2,.85,.24),LC,0,-.42,0,l);add(bx(.22,.12,.36),0x222222,0,-.86,.06,l);legs.push(l);
+    const r=pv(sx*.34,1.42);add(bx(.14,.6,.16),TC,0,-.28,0,r);add(new THREE.SphereGeometry(.08,8,6),SK,0,-.62,0,r);arms.push(r);
+  }
+  add(bx(.52,.64,.3),TC,0,1.12,0);
+  if(o===0)add(new THREE.CylinderGeometry(.3,.5,.85,12),TC,0,.55,0);
+  add(bx(.5,.06,.3),0x222222,0,.84,0);
+  add(new THREE.SphereGeometry(.26,12,10),SK,0,1.72,0);
+  add(new THREE.SphereGeometry(.035,6,5),0x111111,-.09,1.74,.23);add(new THREE.SphereGeometry(.035,6,5),0x111111,.09,1.74,.23);
+  if(o===0){add(new THREE.SphereGeometry(.34,12,8,0,Math.PI*2,0,Math.PI/2),0xffffff,0,1.74,-.02);const ag=add(new THREE.TorusGeometry(.28,.04,6,14),0x1a1a1a,0,1.86,0);ag.rotation.x=Math.PI/2}
+  else if(o===1)add(new THREE.SphereGeometry(.28,12,8,0,Math.PI*2,0,Math.PI/2),0x15110f,0,1.76,-.02);
+  else{add(new THREE.SphereGeometry(.28,12,8,0,Math.PI*2,0,Math.PI/2),0xffffff,0,1.77,-.02);add(bx(.34,.04,.2),0xffffff,0,1.8,.28)}
+  hero.userData.legs=legs;hero.userData.arms=arms;
+}
+buildHero(OUT);
+function animHero(sw){const u=hero.userData;if(!u.legs)return;u.legs[0].rotation.x=sw;u.legs[1].rotation.x=-sw;u.arms[0].rotation.x=-sw;u.arms[1].rotation.x=sw}
 const NX=Math.floor(WW/CELL),NZ=Math.floor(WH/CELL),NXp=NX+1,NN=NXp*(NZ+1);
 const WALK=new Uint8Array(NN);
 for(let j=0;j<=NZ;j++)for(let i=0;i<=NX;i++){
@@ -782,8 +806,8 @@ function stepHero(dt,now){
     else{hero.position.x+=dx/d*sp;hero.position.z+=dz/d*sp;
       let a=Math.atan2(dx,dz),cur=hero.rotation.y,df=a-cur;while(df>Math.PI)df-=2*Math.PI;while(df<-Math.PI)df+=2*Math.PI;
       hero.rotation.y=cur+df*Math.min(1,dt*12)}
-    heroT+=dt;hero.position.y=Math.abs(Math.sin(heroT*11))*.14;hero.rotation.z=Math.sin(heroT*11)*.05;
-  }else{hero.position.y=0;hero.rotation.z=0}
+    heroT+=dt;hero.position.y=Math.abs(Math.sin(heroT*11))*.14;hero.rotation.z=Math.sin(heroT*11)*.05;animHero(Math.sin(heroT*11)*.6);
+  }else{hero.position.y=0;hero.rotation.z=0;animHero(0)}
 }
 
 /* ---------- البيانات ---------- */
@@ -1063,8 +1087,18 @@ const CARN=ROADS.length?150:0,CARC=[0xf2a33a,0xffffff,0xf2a33a,0xc23b3b,0x2f5fa8
 const carA=[];
 {const dk=[.08,.08,.08];
  pb(carA,1.9,.75,4.2,0,.7,0,WALL);pb(carA,1.6,.14,1.9,0,1.8,-.15,WALL);pb(carA,1.7,.52,2.0,0,1.48,-.15,GLASS);
- for(const sx of[-1,1])for(const sz of[-1.3,1.3])pb(carA,.3,.75,.75,sx*.98,.38,sz,dk);
+ pb(carA,1.92,.26,.16,0,.5,2.16,dk);pb(carA,1.92,.26,.16,0,.5,-2.16,dk);pb(carA,.9,.22,.06,0,.72,2.2,[.15,.15,.17]);
+ for(const sx of[-1,1]){pb(carA,.16,.12,.22,sx*1.02,1.25,.75,dk);pb(carA,.04,.5,.04,sx*.96,.85,.25,dk);pb(carA,.04,.5,.04,sx*.96,.85,-.9,dk)}
  pb(carA,.4,.2,.1,-.6,.78,2.12,[3,2.8,2]);pb(carA,.4,.2,.1,.6,.78,2.12,[3,2.8,2]);pb(carA,.4,.18,.1,-.6,.78,-2.12,[2.2,.2,.2]);pb(carA,.4,.18,.1,.6,.78,-2.12,[2.2,.2,.2]);}
+const WG=(()=>{const t=new THREE.CylinderGeometry(.4,.4,.3,16).rotateZ(Math.PI/2),h=new THREE.CylinderGeometry(.22,.22,.34,10).rotateZ(Math.PI/2),I=new THREE.Matrix4();
+  return mergeParts([{g:t,m:I,c:[.07,.07,.07]},{g:h,m:I,c:[.75,.75,.8]}])})();
+const wheelM=new THREE.InstancedMesh(WG,HMAT,Math.max(1,CARN*4));wheelM.castShadow=true;wheelM.frustumCulled=false;wheelM.count=CARN*4;scene.add(wheelM);
+const _wq=new THREE.Quaternion(),_wq2=new THREE.Quaternion(),_wv=new THREE.Vector3(),_wX=new THREE.Vector3(1,0,0),_w1=new THREE.Vector3(1,1,1),_wm=new THREE.Matrix4();
+function wheelsWrite(n,c,spd,dt,yaw){
+  c.wa=(c.wa||0)+(spd||0)*dt/.4;_wq.setFromAxisAngle(UP,yaw);_wq2.setFromAxisAngle(_wX,c.wa);_wq2.premultiply(_wq);
+  let k=0;for(const sx of[-1,1])for(const sz of[-1.3,1.3]){_wv.set(sx*.98,.4,sz).applyQuaternion(_wq);_wv.x+=c.px;_wv.y+=.1;_wv.z+=c.pz;_wm.compose(_wv,_wq2,_w1);wheelM.setMatrixAt(n*4+k,_wm);k++}
+  wheelM.instanceMatrix.needsUpdate=true;
+}
 const carM=new THREE.InstancedMesh(mergeParts(carA),HMAT,Math.max(1,CARN));
 carM.castShadow=true;carM.receiveShadow=true;carM.frustumCulled=false;carM.count=CARN;scene.add(carM);
 const cars=[],CW=CELL/K,cwx=i=>(i*CELL+CELL/2)/K;
@@ -1105,7 +1139,7 @@ function updateTraffic(dt){
     if(c.fresh){c.px=tx;c.pz=tz;c.fresh=0}
     const k=Math.min(1,dt*8);c.px+=(tx-c.px)*k;c.pz+=(tz-c.pz)*k;
     let dy=Math.atan2(c.di,c.dj)-c.yaw;while(dy>Math.PI)dy-=2*Math.PI;while(dy<-Math.PI)dy+=2*Math.PI;c.yaw+=dy*Math.min(1,dt*7);
-    _qy.setFromAxisAngle(UP,c.yaw);_p.set(c.px,.1,c.pz);_s.set(1,1,1);_m.compose(_p,_qy,_s);carM.setMatrixAt(n,_m);
+    _qy.setFromAxisAngle(UP,c.yaw);_p.set(c.px,.1,c.pz);_s.set(1,1,1);_m.compose(_p,_qy,_s);carM.setMatrixAt(n,_m);wheelsWrite(n,c,c.spd,dt,c.yaw);
   }
   carM.instanceMatrix.needsUpdate=true;
 }
@@ -1222,9 +1256,9 @@ function updateSky(dt){
 }
 /* ---- الواجهة ---- */
 const GUI=document.createElement("div");GUI.id="gui";
-GUI.innerHTML='<div id="menu"><h1>🏙️ بغداد</h1><p>لعبة عالم مفتوح — مدينة المتابعين</p><button class="pri" id="mNew">🎮 لعبة جديدة</button><button id="mCont">▶ متابعة اللعبة</button><button id="mExp">🗺️ استكشاف المدينة والمتابعين</button><button id="mGuide">📖 دليل اللعب</button><div id="guide"></div></div>'+
+GUI.innerHTML='<div id="menu"><h1>🏙️ بغداد</h1><p>لعبة عالم مفتوح — مدينة المتابعين</p><button class="pri" id="mNew">🎮 لعبة جديدة</button><button id="mCont">▶ متابعة اللعبة</button><button id="mExp">🗺️ استكشاف المدينة والمتابعين</button><button id="mOut">👕 اختيار الشخصية</button><button id="mQ">✨ جودة عالية</button><button id="mGuide">📖 دليل اللعب</button><div id="guide"></div></div>'+
 '<div id="hud"><canvas id="mm" width="120" height="120"></canvas><div id="dn"></div><div id="hr"><div id="clk"></div><div id="mon"></div><div id="stars">☆☆☆☆☆</div><div class="b"><i id="bHp"></i></div><div class="b"><i id="bAr"></i></div><div class="b"><i id="bSt"></i></div><div id="rep"></div><div id="veh"></div></div>'+
-'<div id="joy"><i id="knob"></i></div><div id="btns"><button id="bCar">🚗</button><button id="bJump">⬆️</button><button id="bRun">🏃</button><button id="bMap">🗺️</button><button id="bMenu">☰</button></div></div>';
+'<div id="joy"><i id="knob"></i></div><div id="btns"><button id="bCar">🚗</button><button id="bJump">⬆️</button><button id="bRun">🏃</button><button id="bMap">🗺️</button><button id="bOut">👕</button><button id="bQ">✨</button><button id="bMenu">☰</button></div></div>';
 document.body.appendChild(GUI);
 const mmc=$("mm").getContext("2d");
 let MM=null;const mmS=.5;
@@ -1345,7 +1379,7 @@ function driveCar(dt){
   }else{c.px=nx;c.pz=nz;c.yaw=yaw}
   c.sp=sp;c.fuel=Math.max(0,c.fuel-Math.abs(sp)*dt*.012);
   if(c.fuel<=0&&!c.warn){c.warn=1;toast("⛽ نفد الوقود — انزل واركب سيارة ثانية")}
-  _qy.setFromAxisAngle(UP,c.yaw);_p.set(c.px,.1,c.pz);_s.set(1,1,1);_m.compose(_p,_qy,_s);carM.setMatrixAt(cars.indexOf(c),_m);carM.instanceMatrix.needsUpdate=true;
+  _qy.setFromAxisAngle(UP,c.yaw);_p.set(c.px,.1,c.pz);_s.set(1,1,1);_m.compose(_p,_qy,_s);const ci0=cars.indexOf(c);carM.setMatrixAt(ci0,_m);carM.instanceMatrix.needsUpdate=true;wheelsWrite(ci0,c,c.sp,dt,c.yaw);
 }
 function walk(dt,now){
   let ix=PLAY.jx+(KEY.d?1:0)-(KEY.a?1:0),iz=PLAY.jy+(KEY.s?1:0)-(KEY.w?1:0);
@@ -1367,6 +1401,7 @@ function walk(dt,now){
   if(PLAY.jump&&hero.position.y<.02){PLAY.vy=6.5}PLAY.jump=false;
   PLAY.vy-=18*dt;hero.position.y=Math.max(0,hero.position.y+PLAY.vy*dt);if(hero.position.y===0)PLAY.vy=0;
   if(hero.position.y<.02&&m>.05){hero.position.y=Math.abs(Math.sin(PLAY.fy))*.14;hero.rotation.z=Math.sin(PLAY.fy)*.05}
+  PLAY.sw=m>.05?Math.sin(PLAY.fy)*(run?.95:.65):(PLAY.sw||0)*.8;animHero(hero.position.y>.2?.5:PLAY.sw);
 }
 function playStep(dt,now){
   if(PLAY.car)driveCar(dt);else walk(dt,now);
@@ -1392,6 +1427,38 @@ function playStep(dt,now){
   drawMM(px,pz,c?c.yaw:PLAY.cy+Math.PI);
 }
 
+/* ---------- جودة عالية: توهج + تنعيم حواف (تحميل عند الطلب) ---------- */
+let COMP=null,FXP=null,QUAL=false;try{QUAL=localStorage.getItem("baghdad_q")==="1"}catch(e){}
+const ACESF={uniforms:{tDiffuse:{value:null},ex:{value:1.3}},vertexShader:"varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",fragmentShader:"uniform sampler2D tDiffuse;uniform float ex;varying vec2 vUv;void main(){vec3 x=texture2D(tDiffuse,vUv).rgb*ex*.75;vec3 c=clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);gl_FragColor=vec4(c,1.);}"};
+function qLabel(){const t=QUAL?"✨ جودة عالية: تشغيل":"✨ جودة عالية: إيقاف";$("mQ").textContent=t;$("bQ").classList.toggle("on",QUAL)}
+function loadScripts(list,cb,fail){let i=0;(function nx(){if(i>=list.length)return cb();const sc=document.createElement("script");sc.src=list[i++];sc.onload=nx;sc.onerror=fail;document.head.appendChild(sc)})()}
+function buildComp(){
+  const pr=Math.min(window.devicePixelRatio||1,1.5);renderer.setPixelRatio(pr);renderer.setSize(innerWidth,innerHeight);
+  const w=innerWidth*pr,h=innerHeight*pr;
+  const rt=new THREE.WebGLRenderTarget(w,h,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,type:THREE.HalfFloatType});
+  COMP=new THREE.EffectComposer(renderer,rt);
+  COMP.addPass(new THREE.RenderPass(scene,camera));
+  COMP.addPass(new THREE.UnrealBloomPass(new THREE.Vector2(w,h),.55,.6,.85));
+  const ac=new THREE.ShaderPass(ACESF);COMP.addPass(ac);
+  FXP=new THREE.ShaderPass(THREE.FXAAShader);FXP.uniforms.resolution.value.set(1/w,1/h);COMP.addPass(FXP);
+  renderer.toneMapping=THREE.NoToneMapping;
+}
+function setQ(on,silent){
+  QUAL=on;try{localStorage.setItem("baghdad_q",on?"1":"0")}catch(e){}
+  if(!on){COMP=null;FXP=null;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.setSize(innerWidth,innerHeight);qLabel();if(!silent)toast("الجودة العادية");return}
+  if(window.THREE.FXAAShader&&window.THREE.UnrealBloomPass){try{buildComp()}catch(e){QUAL=false;COMP=null}qLabel();if(!silent)toast("✨ جودة عالية");return}
+  const B="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/";
+  toast("جاري تحميل مؤثرات الجودة…");
+  loadScripts(["postprocessing/EffectComposer.js","postprocessing/RenderPass.js","postprocessing/ShaderPass.js","shaders/CopyShader.js","shaders/LuminosityHighPassShader.js","postprocessing/UnrealBloomPass.js","shaders/FXAAShader.js"].map(x=>B+x),
+    ()=>{if(!QUAL)return;try{buildComp();toast("✨ جودة عالية")}catch(e){QUAL=false;COMP=null;toast("جهازك ما يدعم الجودة العالية")}qLabel()},
+    ()=>{QUAL=false;COMP=null;qLabel();toast("تعذر تحميل مؤثرات الجودة")});
+}
+window.addEventListener("resize",()=>{if(COMP){const pr=renderer.getPixelRatio();COMP.setSize(innerWidth,innerHeight);FXP.uniforms.resolution.value.set(1/(innerWidth*pr),1/(innerHeight*pr))}});
+$("mQ").onclick=$("bQ").onclick=()=>setQ(!QUAL);
+function cycleOutfit(){OUT=(OUT+1)%3;buildHero(OUT);try{localStorage.setItem("baghdad_out",String(OUT))}catch(e){}toast("👕 "+OUTN[OUT])}
+$("mOut").onclick=$("bOut").onclick=cycleOutfit;
+qLabel();if(QUAL)setQ(true,true);
+
 /* ---------- الحلقة ---------- */
 window.addEventListener("resize",()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()});
 const ease=t=>t<1?1+2.70158*Math.pow(t-1,3)+1.70158*Math.pow(t-1,2):1;
@@ -1416,7 +1483,7 @@ function loop(now){
     if(l.pop){const t=(now-l.pop)/900;if(t>=1){l.pop=0;l.root.scale.set(1,1,1)}else{const k=Math.max(.01,ease(t));l.root.scale.set(k,k,k)}}
     if(l.open.userData.spin)l.open.userData.spin.rotation.z+=dt*.25;
   }
-  skyM.position.copy(camera.position);
+  skyM.position.copy(camera.position);window.__WATU.value=now/1000;
   updateSky(dt);
   updateTraffic(dt);
   updatePeds(dt,now);
@@ -1460,7 +1527,7 @@ function loop(now){
     const sc=(sel.l?2.6:1)*(1+pl*.18);ring.scale.set(sc,sc,sc);ring.material.opacity=.95-pl*.5;
   }else ring.visible=false;
   updatePool(now);
-  renderer.render(scene,camera);
+  if(COMP)COMP.render();else renderer.render(scene,camera);
 }
 
 /* ---------- تشغيل ---------- */
