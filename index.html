@@ -46,7 +46,7 @@ button.on{background:var(--gold)}
 
 <div class="top">
   <div>
-    <h1>🏙️ بغداد — مدينة المتابعين <small style="font-size:10px;opacity:.7">v4</small></h1>
+    <h1>🏙️ بغداد — مدينة المتابعين <small style="font-size:10px;opacity:.7">v5</small></h1>
     <div class="lvl" id="lvl"></div>
     <div class="prog"><i id="progBar"></i></div>
     <div class="next" id="next"></div>
@@ -242,6 +242,7 @@ function faceRoad(i,j,r){
 const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
 renderer.setSize(innerWidth,innerHeight);
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.3;
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 const cv=renderer.domElement;cv.id="map";document.body.insertBefore(cv,document.body.firstChild);
@@ -261,11 +262,11 @@ controls.target.set(CENTER.x/K,0,CENTER.y/K);
 camera.position.set(CENTER.x/K,46,CENTER.y/K+52);
 controls.update();
 
-scene.add(new THREE.HemisphereLight(0xffe9c8,0x8a6e4e,.6));
-const sun=new THREE.DirectionalLight(0xffd7a3,.9);
+scene.add(new THREE.HemisphereLight(0xffe9c8,0x8a6e4e,.5));
+const sun=new THREE.DirectionalLight(0xffd7a3,1.1);
 const SUNOFF=new THREE.Vector3(70,58,40);
 sun.castShadow=true;
-sun.shadow.mapSize.set(1024,1024);
+sun.shadow.mapSize.set(2048,2048);
 sun.shadow.camera.left=-48;sun.shadow.camera.right=48;sun.shadow.camera.top=48;sun.shadow.camera.bottom=-48;
 sun.shadow.camera.near=1;sun.shadow.camera.far=260;
 sun.shadow.bias=-0.0004;sun.shadow.normalBias=.35;
@@ -274,7 +275,7 @@ scene.add(sun);scene.add(sun.target);
 const skyM=new THREE.Mesh(new THREE.SphereGeometry(2400,24,16),new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,depthTest:false,fog:false,
   uniforms:{sd:{value:SUNOFF.clone().normalize()}},
   vertexShader:"varying vec3 vp;void main(){vp=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
-  fragmentShader:"varying vec3 vp;uniform vec3 sd;void main(){vec3 d=normalize(vp);float h=clamp(d.y,0.,1.);vec3 hor=vec3(.94,.77,.55),mid=vec3(.93,.58,.40),top=vec3(.27,.43,.70);vec3 c=mix(hor,mid,smoothstep(0.,.16,h));c=mix(c,top,smoothstep(.1,.7,h));float s=max(dot(d,sd),0.);c+=vec3(1.,.7,.35)*pow(s,20.)*.5+vec3(1.,.92,.75)*pow(s,300.)*1.3;gl_FragColor=vec4(c,1.);}"}));
+  fragmentShader:"varying vec3 vp;uniform vec3 sd;void main(){vec3 d=normalize(vp);float h=clamp(d.y,0.,1.);vec3 hor=vec3(.94,.77,.55),mid=vec3(.93,.58,.40),top=vec3(.27,.43,.70);vec3 c=mix(hor,mid,smoothstep(0.,.16,h));c=mix(c,top,smoothstep(.1,.7,h));vec2 cp=d.xz/(d.y+.25);float cl=sin(cp.x*3.)*sin(cp.y*2.7+1.3)+sin(cp.x*7.+cp.y*5.)*.5;cl=smoothstep(.55,1.2,cl)*smoothstep(.08,.3,h);c=mix(c,vec3(1.,.82,.66),cl*.45);float s=max(dot(d,sd),0.);c+=vec3(1.,.7,.35)*pow(s,20.)*.5+vec3(1.,.92,.75)*pow(s,300.)*1.3;gl_FragColor=vec4(c,1.);}"}));
 skyM.renderOrder=-1000;skyM.frustumCulled=false;scene.add(skyM);
 const mats={};
 function mat(c,o){const k=c+JSON.stringify(o||{});return mats[k]||(mats[k]=new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.9,metalness:0},o||{})))}
@@ -288,7 +289,10 @@ const WX=WW/K, WZ=WH/K;
 (function(){
   const far=new THREE.Mesh(new THREE.PlaneGeometry(30000,30000),new THREE.MeshStandardMaterial({color:0xc9a96f,roughness:1,polygonOffset:true,polygonOffsetFactor:4,polygonOffsetUnits:4}));
   far.rotation.x=-Math.PI/2;far.position.set(WX/2,-.4,WZ/2);scene.add(far);
-  const g=new THREE.Mesh(new THREE.PlaneGeometry(WX+900,WZ+900),new THREE.MeshStandardMaterial({color:0xeedcae,roughness:1,polygonOffset:true,polygonOffsetFactor:2,polygonOffsetUnits:2}));
+  const gc=document.createElement("canvas");gc.width=gc.height=256;const gx=gc.getContext("2d");
+  for(let y=0;y<128;y++)for(let x=0;x<128;x++){const v=200+Math.floor(Math.random()*55);gx.fillStyle="rgb("+v+","+(v-7)+","+(v-20)+")";gx.fillRect(x*2,y*2,2,2)}
+  const gt=new THREE.CanvasTexture(gc);gt.wrapS=gt.wrapT=THREE.RepeatWrapping;gt.repeat.set((WX+900)/24,(WZ+900)/24);gt.anisotropy=8;
+  const g=new THREE.Mesh(new THREE.PlaneGeometry(WX+900,WZ+900),new THREE.MeshStandardMaterial({color:0xeedcae,map:gt,roughness:1,polygonOffset:true,polygonOffsetFactor:2,polygonOffsetUnits:2}));
   g.rotation.x=-Math.PI/2;g.position.set(WX/2,0,WZ/2);g.receiveShadow=true;scene.add(g);
   function ribbon(hw,y,color,rough){
     const pos=[],idx=[];
@@ -306,8 +310,8 @@ const WX=WW/K, WZ=WH/K;
     m.receiveShadow=true;scene.add(m);return m;
   }
   ribbon(14,.05,0x9bb36f,1);
-  ribbon(10,.09,0x2b7f9a,.2);
-  ribbon(5,.12,0x4fa6c0,.15);
+  ribbon(10,.09,0x2b7f9a,.08).material.metalness=.35;
+  ribbon(5,.12,0x4fa6c0,.06).material.metalness=.4;
 })();
 
 /* نخيل على ضفاف النهر */
@@ -1141,7 +1145,7 @@ function loop(now){
     LM.forEach(l=>l.sprite.scale.set(15*f,3.75*f,1));BR.forEach(b=>b.sprite.scale.set(11*f,2.75*f,1));
   }
   { // ظل ثابت بدون اهتزاز: نثبّت موقع الشمس على شبكة بكسلات خريطة الظل
-    const st=96/1024,tr=controls.target.dot(SRIGHT),tu=controls.target.dot(SUP2);
+    const st=96/2048,tr=controls.target.dot(SRIGHT),tu=controls.target.dot(SUP2);
     _tt.copy(controls.target).addScaledVector(SRIGHT,Math.round(tr/st)*st-tr).addScaledVector(SUP2,Math.round(tu/st)*st-tu);
     sun.position.copy(_tt).add(SUNOFF);sun.target.position.copy(_tt);sun.target.updateMatrixWorld();
   }
