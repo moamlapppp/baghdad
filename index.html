@@ -62,7 +62,7 @@ body.gm .top,body.gm .bar,body.gm #sheet{display:none!important}
 
 <div class="top">
   <div>
-    <h1>🏙️ بغداد — مدينة المتابعين <small style="font-size:10px;opacity:.7">v8</small></h1>
+    <h1>🏙️ بغداد — مدينة المتابعين <small style="font-size:10px;opacity:.7">v9</small></h1>
     <div class="lvl" id="lvl"></div>
     <div class="prog"><i id="progBar"></i></div>
     <div class="next" id="next"></div>
@@ -277,7 +277,7 @@ function faceRoad(i,j,r){
 
 /* ---------- المشهد ---------- */
 const renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
 renderer.setSize(innerWidth,innerHeight);
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.3;
 renderer.shadowMap.enabled=true;
@@ -303,7 +303,7 @@ const hemi=new THREE.HemisphereLight(0xffe9c8,0x8a6e4e,.5);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xffd7a3,1.1);
 const SUNOFF=new THREE.Vector3(70,58,40);
 sun.castShadow=true;
-sun.shadow.mapSize.set(2048,2048);
+sun.shadow.mapSize.set(1024,1024);
 sun.shadow.camera.left=-48;sun.shadow.camera.right=48;sun.shadow.camera.top=48;sun.shadow.camera.bottom=-48;
 sun.shadow.camera.near=1;sun.shadow.camera.far=260;
 sun.shadow.bias=-0.0004;sun.shadow.normalBias=.35;
@@ -1186,7 +1186,7 @@ const LHM=new THREE.MeshBasicMaterial({color:0x6a6a6e});
 })();
 
 /* ---------- سيارات تمشي بالشوارع ---------- */
-const CARN=ROADS.length?150:0,CARC=[0xf2a33a,0xffffff,0xf2a33a,0xc23b3b,0x2f5fa8,0x202225,0xd8d8d8,0x3f8a5a,0xe6c33a,0x7b3fa0];
+const CARN=ROADS.length?50:0,CARC=[0xf2a33a,0xffffff,0xf2a33a,0xc23b3b,0x2f5fa8,0x202225,0xd8d8d8,0x3f8a5a,0xe6c33a,0x7b3fa0];
 const carA=[];
 {const dk=[.08,.08,.08];
  pb(carA,1.9,.75,4.2,0,.7,0,WALL);pb(carA,1.6,.14,1.9,0,1.8,-.15,WALL);pb(carA,1.7,.52,2.0,0,1.48,-.15,GLASS);
@@ -1273,7 +1273,7 @@ function blocked(x,z,r){
 const PEDV=[[.88,.86,.8],[.18,.22,.34],[.55,.2,.2]],PEDN=36,PEDM=[],peds=[];
 PEDV.forEach(cl=>{
   const a=[];pb(a,.55,.95,.34,0,1.0,0,cl);pb(a,.4,.55,.26,0,.28,0,[.12,.12,.15]);pb(a,.34,.34,.34,0,1.65,0,[.85,.66,.5]);pb(a,.36,.12,.36,0,1.88,0,[.1,.1,.1]);
-  const m=new THREE.InstancedMesh(mergeParts(a),HMAT,PEDN);m.castShadow=true;m.frustumCulled=false;m.count=PEDN;scene.add(m);PEDM.push(m);
+  const m=new THREE.InstancedMesh(mergeParts(a),HMAT,PEDN);m.castShadow=true;m.frustumCulled=false;m.count=0;scene.add(m);PEDM.push(m);
 });
 function spawnPed(c){
   const T=controls.target;
@@ -1317,7 +1317,7 @@ const CASH=[];
   for(let k=0;k<ROADS.length;k+=stp){const r=ROADS[k];CASH.push({x:cwx(r[0])+(hash(k)-.5)*4,z:cwx(r[1])+(hash(k+9)-.5)*4,off:0,v:100+Math.floor(hash(k+5)*5)*100})}
 })();
 const cashG=[];pb(cashG,.9,.12,.5,0,.5,0,[.2,.75,.3]);pb(cashG,.35,.14,.5,0,.5,0,[1.6,1.3,.4]);
-const cashM=new THREE.InstancedMesh(mergeParts(cashG),HMAT,Math.max(1,CASH.length));cashM.frustumCulled=false;cashM.count=CASH.length;scene.add(cashM);
+const cashM=new THREE.InstancedMesh(mergeParts(cashG),HMAT,Math.max(1,CASH.length));cashM.frustumCulled=false;cashM.count=0;scene.add(cashM);
 function updateCash(dt,now,px,pz){
   CASH.forEach((c,n)=>{
     if(c.off&&now>c.off)c.off=0;
@@ -1362,7 +1362,7 @@ const GUI=document.createElement("div");GUI.id="gui";
 GUI.innerHTML='<div id="menu"><h1>🏙️ بغداد</h1><p>لعبة عالم مفتوح — مدينة المتابعين</p><button class="pri" id="mNew">🎮 لعبة جديدة</button><button id="mCont">▶ متابعة اللعبة</button><button id="mExp">🗺️ استكشاف المدينة والمتابعين</button><button id="mOut">👕 اختيار الشخصية</button><button id="mQ">✨ جودة عالية</button><button id="mGuide">📖 دليل اللعب</button><div id="guide"></div></div>'+
 '<div id="hud"><canvas id="mm" width="120" height="120"></canvas><div id="dn"></div><div id="hr"><div id="clk"></div><div id="mon"></div><div id="stars">☆☆☆☆☆</div><div class="b"><i id="bHp"></i></div><div class="b"><i id="bAr"></i></div><div class="b"><i id="bSt"></i></div><div id="rep"></div><div id="veh"></div></div>'+
 '<div id="joy"><i id="knob"></i></div><div id="btns"><button id="bCar">🚗</button><button id="bJump">⬆️</button><button id="bRun">🏃</button><button id="bMap">🗺️</button><button id="bOut">👕</button><button id="bQ">✨</button><button id="bMenu">☰</button></div></div>';
-document.body.appendChild(GUI);
+GUI.style.display="none";document.body.appendChild(GUI); // واجهة اللعب معطّلة (تسبب لاگ)
 const mmc=$("mm").getContext("2d");
 let MM=null;const mmS=.5;
 function buildMM(){
@@ -1548,7 +1548,7 @@ function buildComp(){
 }
 function setQ(on,silent){
   QUAL=on;try{localStorage.setItem("baghdad_q",on?"1":"0")}catch(e){}
-  if(!on){COMP=null;FXP=null;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.setSize(innerWidth,innerHeight);qLabel();if(!silent)toast("الجودة العادية");return}
+  if(!on){COMP=null;FXP=null;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));renderer.setSize(innerWidth,innerHeight);qLabel();if(!silent)toast("الجودة العادية");return}
   if(window.THREE.FXAAShader&&window.THREE.UnrealBloomPass){try{buildComp()}catch(e){QUAL=false;COMP=null}qLabel();if(!silent)toast("✨ جودة عالية");return}
   const B="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/";
   toast("جاري تحميل مؤثرات الجودة…");
@@ -1560,7 +1560,7 @@ window.addEventListener("resize",()=>{if(COMP){const pr=renderer.getPixelRatio()
 $("mQ").onclick=$("bQ").onclick=()=>setQ(!QUAL);
 function cycleOutfit(){OUT=(OUT+1)%3;buildHero(OUT);try{localStorage.setItem("baghdad_out",String(OUT))}catch(e){}toast("👕 "+OUTN[OUT])}
 $("mOut").onclick=$("bOut").onclick=cycleOutfit;
-qLabel();if(QUAL)setQ(true,true);
+qLabel();QUAL=false;
 
 /* ---------- الحلقة ---------- */
 window.addEventListener("resize",()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()});
@@ -1589,7 +1589,7 @@ function loop(now){
   skyM.position.copy(camera.position);window.__WATU.value=now/1000;
   updateSky(dt);
   updateTraffic(dt);
-  updatePeds(dt,now);
+  if(PLAY.on)updatePeds(dt,now);
   // الشخصية
   if(PLAY.on)playStep(dt,now);else stepHero(dt,now);
   DECO.forEach(d=>{d.g.userData.star.rotation.y+=dt*1.2});
@@ -1619,7 +1619,7 @@ function loop(now){
     LM.forEach(l=>l.sprite.scale.set(15*f,3.75*f,1));BR.forEach(b=>b.sprite.scale.set(11*f,2.75*f,1));
   }
   { // ظل ثابت بدون اهتزاز: نثبّت موقع الشمس على شبكة بكسلات خريطة الظل
-    const st=96/2048,tr=controls.target.dot(SRIGHT),tu=controls.target.dot(SUP2);
+    const st=96/1024,tr=controls.target.dot(SRIGHT),tu=controls.target.dot(SUP2);
     _tt.copy(controls.target).addScaledVector(SRIGHT,Math.round(tr/st)*st-tr).addScaledVector(SUP2,Math.round(tu/st)*st-tu);
     sun.position.copy(_tt).add(SUNOFF);sun.target.position.copy(_tt);sun.target.updateMatrixWorld();
   }
