@@ -99,7 +99,7 @@ const BATCHES = [
   {date:"2026-11-16", users:["demo_ali","demo_zainab","demo_hassan","demo_noor","demo_omar","demo_sara","demo_karar","demo_maryam"]},
   {date:"2026-11-17", users:["demo_ahmed","demo_fatima","demo_mustafa","demo_huda","demo_yasser","demo_rana","demo_abbas","demo_layla","demo_zaid","demo_dina"]},
   {date:"2026-11-18", users:["demo_hadi","demo_tuqa","demo_ibrahim","demo_ruqaya","demo_baqir","demo_alaa"]},
-  {date:"2026-11-19", users:["yousefalani_2"]}
+  {date:"2026-11-19", users:["yousefalani_2","ii2tote"]}
 ];
 /* ============================================================ */
 
@@ -186,20 +186,32 @@ for(let j=0;j<NZc;j++)for(let i=0;i<NXc;i++){
   slots.push({x,y,i,j,k:Math.hypot(x-CENTER.x,y-CENTER.y)+hash(i*977+j*131)*10});
 }
 slots.sort((a,b)=>a.k-b.k);
-/* بيوت مثبتة على حدود بغداد: اليوزر : موقع تقريبي على الخريطة (بكسل اللقطة) */
-const PINNED={"yousefalani_2":[668,790]};
-const PINSLOT={};
+/* بيوت مثبتة: اليوزر : {at: موقع على الخريطة (بكسل اللقطة), edge: على الحدود, two: طابقين, tree: شجرة كريسمس يمّه} */
+const PINNED={
+  "yousefalani_2":{at:[668,790],edge:true},
+  "ii2tote":{at:[425,902],two:true,tree:true}
+};
+const PINSLOT={},PINOPT={},PINTREE={};
 (function(){
   for(const u in PINNED){
-    const tx=PINNED[u][0]*G,ty=PINNED[u][1]*G;
+    const o=PINNED[u],tx=o.at[0]*G,ty=o.at[1]*G;
     let bi=-1,bd=1e9;
     slots.forEach((s,i)=>{
-      let edge=1e9;
-      for(let a=0;a<BOUND.length;a++){const b=BOUND[(a+1)%BOUND.length];const d=distSeg(s.x,s.y,BOUND[a].x,BOUND[a].y,b.x,b.y);if(d<edge)edge=d}
-      if(edge>9)return;
+      if(o.edge){
+        let edge=1e9;
+        for(let a=0;a<BOUND.length;a++){const b=BOUND[(a+1)%BOUND.length];const d=distSeg(s.x,s.y,BOUND[a].x,BOUND[a].y,b.x,b.y);if(d<edge)edge=d}
+        if(edge>9)return;
+      }
       const d=Math.hypot(s.x-tx,s.y-ty);if(d<bd){bd=d;bi=i}
     });
-    if(bi>=0)PINSLOT[u.toLowerCase()]=slots.splice(bi,1)[0];
+    if(bi<0)continue;
+    const s0=slots.splice(bi,1)[0],k=u.toLowerCase();
+    PINSLOT[k]=s0;PINOPT[k]=o;
+    if(o.tree){
+      let ti=-1,td=1e9;
+      slots.forEach((s,i)=>{if(Math.abs(s.i-s0.i)+Math.abs(s.j-s0.j)===1){const d=Math.hypot(s.x-s0.x-4,s.y-s0.y);if(d<td){td=d;ti=i}}});
+      if(ti>=0){const t=slots.splice(ti,1)[0];PINTREE[k]={x:t.x,y:t.y}}
+    }
   }
 })();
 const CAP=slots.length+Object.keys(PINSLOT).length;
@@ -227,14 +239,14 @@ controls.target.set(CENTER.x/K,0,CENTER.y/K);
 camera.position.set(CENTER.x/K,46,CENTER.y/K+52);
 controls.update();
 
-scene.add(new THREE.HemisphereLight(0xfff4dc,0xb59a6a,.85));
-const sun=new THREE.DirectionalLight(0xfff0cf,.95);
+scene.add(new THREE.HemisphereLight(0xfff4dc,0x9c8460,.62));
+const sun=new THREE.DirectionalLight(0xfff0cf,.8);
 const SUNOFF=new THREE.Vector3(55,85,38);
 sun.castShadow=true;
 sun.shadow.mapSize.set(1024,1024);
 sun.shadow.camera.left=-48;sun.shadow.camera.right=48;sun.shadow.camera.top=48;sun.shadow.camera.bottom=-48;
 sun.shadow.camera.near=1;sun.shadow.camera.far=260;
-sun.shadow.bias=-0.0006;
+sun.shadow.bias=-0.0004;sun.shadow.normalBias=.35;
 scene.add(sun);scene.add(sun.target);
 
 const mats={};
@@ -247,9 +259,9 @@ function D(p,r,c,x,y,z,o){const m=new THREE.Mesh(new THREE.SphereGeometry(r,18,1
 /* ---------- الأرض والنهر ---------- */
 const WX=WW/K, WZ=WH/K;
 (function(){
-  const far=new THREE.Mesh(new THREE.PlaneGeometry(30000,30000),new THREE.MeshStandardMaterial({color:0xc9a96f,roughness:1}));
-  far.rotation.x=-Math.PI/2;far.position.set(WX/2,-.08,WZ/2);scene.add(far);
-  const g=new THREE.Mesh(new THREE.PlaneGeometry(WX+900,WZ+900),new THREE.MeshStandardMaterial({color:0xe8cf9d,roughness:1}));
+  const far=new THREE.Mesh(new THREE.PlaneGeometry(30000,30000),new THREE.MeshStandardMaterial({color:0xc9a96f,roughness:1,polygonOffset:true,polygonOffsetFactor:4,polygonOffsetUnits:4}));
+  far.rotation.x=-Math.PI/2;far.position.set(WX/2,-.4,WZ/2);scene.add(far);
+  const g=new THREE.Mesh(new THREE.PlaneGeometry(WX+900,WZ+900),new THREE.MeshStandardMaterial({color:0xeedcae,roughness:1,polygonOffset:true,polygonOffsetFactor:2,polygonOffsetUnits:2}));
   g.rotation.x=-Math.PI/2;g.position.set(WX/2,0,WZ/2);g.receiveShadow=true;scene.add(g);
   function ribbon(hw,y,color,rough){
     const pos=[],idx=[];
@@ -263,12 +275,12 @@ const WX=WW/K, WZ=WH/K;
     const geo=new THREE.BufferGeometry();
     geo.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));
     geo.setIndex(idx);geo.computeVertexNormals();
-    const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color,roughness:rough,metalness:.05,side:THREE.DoubleSide}));
+    const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color,roughness:rough,metalness:.05,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
     m.receiveShadow=true;scene.add(m);return m;
   }
-  ribbon(14,.03,0xa5c47e,1);
-  ribbon(10,.07,0x3f9cbd,.25);
-  ribbon(5,.09,0x6fc0da,.2);
+  ribbon(14,.05,0xa5c47e,1);
+  ribbon(10,.09,0x3f9cbd,.25);
+  ribbon(5,.12,0x6fc0da,.2);
 })();
 
 /* نخيل على ضفاف النهر */
@@ -299,7 +311,7 @@ const WX=WW/K, WZ=WH/K;
 const _m=new THREE.Matrix4(),_p=new THREE.Vector3(),_q=new THREE.Quaternion(),_s=new THREE.Vector3(),_qy=new THREE.Quaternion(),UP=new THREE.Vector3(0,1,0);
 function inst(cap,mt,shadow){const m=new THREE.InstancedMesh(boxG,mt,cap);m.castShadow=shadow!==false;m.receiveShadow=true;m.count=0;m.frustumCulled=false;scene.add(m);return m}
 const matW=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1});
-const bodyM=inst(CAP,matW),merM=inst(CAP*8,matW),doorM=inst(CAP,mat(0x5b3a1e)),winM=inst(CAP*2,mat(0x3b2a1c)),padM=inst(CAP,mat(0xd2b583),false);
+const bodyM=inst(CAP,matW),merM=inst(CAP*8,matW),doorM=inst(CAP,mat(0x5b3a1e)),winM=inst(CAP*2,mat(0x3b2a1c)),padM=inst(CAP,mat(0xa68d66),false);
 const MERL=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
 const PAL=[0xdcc08c,0xe4cb99,0xd2b27a,0xe9d4a9,0xcba46a,0xd8b98a];
 let houses=[];
@@ -312,6 +324,21 @@ let houses=[];
   marks.forEach((m,n)=>{_p.set(m[0],.5,m[1]);_qy.setFromAxisAngle(UP,-m[2]);_s.set(4,1,.7);_m.compose(_p,_qy,_s);mm.setMatrixAt(n,_m)});
   mm.frustumCulled=false;scene.add(mm);
 })();
+/* شجرة كريسمس */
+const DECO=[];
+function xmas(g){
+  C(g,.5,.6,1.2,0x6b4a2a,0,.6,0,8);
+  [[2.4,3,2.7],[1.9,2.6,4.4],[1.3,2.2,5.9]].forEach(c=>{const m=new THREE.Mesh(new THREE.ConeGeometry(c[0],c[1],14),mat(0x1f7a3a));m.position.set(0,c[2],0);m.castShadow=true;g.add(m)});
+  const cols=[0xd32f2f,0xffc107,0x2196f3,0xffffff];
+  for(let k=0;k<14;k++){const l=k%3,y=[2.0,3.8,5.4][l],r=[1.75,1.3,.85][l],a=k*2.4;
+    const o=new THREE.Mesh(new THREE.SphereGeometry(.22,8,6),mat(cols[k%4],{roughness:.3,metalness:.3}));o.position.set(Math.cos(a)*r,y,Math.sin(a)*r);g.add(o)}
+  const star=new THREE.Mesh(new THREE.OctahedronGeometry(.6),new THREE.MeshStandardMaterial({color:0xffd54a,emissive:0xffb300,emissiveIntensity:.9,roughness:.3}));
+  star.position.set(0,7.5,0);g.add(star);g.userData.star=star;
+  B(g,.9,.8,.9,0xd32f2f,1.9,.4,.9);B(g,.95,.08,.2,0xffd54a,1.9,.84,.9);
+  B(g,.7,.6,.7,0x2196f3,-1.8,.3,1.2);B(g,.75,.08,.2,0xffd54a,-1.8,.64,1.2);
+}
+for(const u in PINTREE){const t=PINTREE[u],g=new THREE.Group();g.position.set(t.x,0,t.y);xmas(g);g.visible=false;scene.add(g);DECO.push({u,g})}
+function updateDeco(){DECO.forEach(d=>{const hi=houses.findIndex(h=>h.u.toLowerCase()===d.u);d.g.visible=hi>=0&&hi<visible})}
 
 function writeHouse(n,k){
   const h=houses[n],w=h.w,H=h.h,y0=.12;
@@ -697,16 +724,16 @@ function build(){
       if(!s)return;
       const r1=hash(hstr(u)),r2=hash(hstr(u)+5),r3=hash(hstr(u)+11);
       houses.push({u,date:b.date,bi,x:s.x/K,z:s.y/K,i:s.i,j:s.j,n:houses.length+1,
-        w:4.2+r2*.8,h:r3>.82?7:3.4+r1*1.6,rot:Math.floor(r1*4)*Math.PI/2,
+        w:4.2+r2*.8,h:(PINOPT[u.toLowerCase()]&&PINOPT[u.toLowerCase()].two)?7.4:(r3>.82?7:3.4+r1*1.6),rot:Math.floor(r1*4)*Math.PI/2,
         col:PAL[Math.floor(r2*PAL.length)],dist:districtOf(s.x,s.y),born:0});
     });
     batchEnd.push(houses.length);
   });
   cellMap=new Map();houses.forEach((h,n)=>cellMap.set(h.i*1000+h.j,n));
-  const c=new THREE.Color();
+  const c=new THREE.Color(),cm=new THREE.Color();
   houses.forEach((h,n)=>{
-    c.setHex(h.col);bodyM.setColorAt(n,c);
-    for(let m=0;m<8;m++)merM.setColorAt(n*8+m,c);
+    c.setHex(h.col);bodyM.setColorAt(n,c);cm.copy(c).multiplyScalar(1.1);
+    for(let m=0;m<8;m++)merM.setColorAt(n*8+m,cm);
     writeHouse(n,1);
   });
   if(bodyM.instanceColor)bodyM.instanceColor.needsUpdate=true;
@@ -742,7 +769,7 @@ function setShown(n,quiet){
     flushInst();
     if(!quiet)LM.concat(BR).filter(l=>l.need>before&&l.need<=visible).forEach((l,i)=>setTimeout(()=>toast("🎉 انفتح: "+l.name),700+i*2600));
   }
-  applyCounts(visible);
+  applyCounts(visible);updateDeco();
   if(sel&&sel.h&&houses.indexOf(sel.h)>=visible){sel=null;$("sheet").style.display="none"}
   refreshLandmarks(quiet===true&&before===0&&!window.__init);
   updateUI();
@@ -870,6 +897,7 @@ $("clearLocal").onclick=()=>{saveLocal([]);const old=visible;mergeBatches();buil
 /* ---------- الحلقة ---------- */
 window.addEventListener("resize",()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()});
 const ease=t=>t<1?1+2.70158*Math.pow(t-1,3)+1.70158*Math.pow(t-1,2):1;
+const SDIR=SUNOFF.clone().normalize(),SRIGHT=new THREE.Vector3(0,1,0).cross(SDIR).normalize(),SUP2=SDIR.clone().cross(SRIGHT).normalize(),_tt=new THREE.Vector3();
 let last=performance.now();
 function loop(now){
   requestAnimationFrame(loop);
@@ -892,6 +920,7 @@ function loop(now){
   }
   // الشخصية
   stepHero(dt,now);
+  DECO.forEach(d=>{d.g.userData.star.rotation.y+=dt*1.2});
   if(follow&&!fly){
     const dx=hero.position.x-controls.target.x,dz=hero.position.z-controls.target.z,k=1-Math.exp(-5*dt);
     controls.target.x+=dx*k;controls.target.z+=dz*k;camera.position.x+=dx*k;camera.position.z+=dz*k;
@@ -905,8 +934,23 @@ function loop(now){
   controls.target.x=Math.max(0,Math.min(WX,controls.target.x));
   controls.target.z=Math.max(0,Math.min(WZ,controls.target.z));
   controls.update();
-  {const far=camera.position.distanceTo(controls.target)>95;if(far!==DSPR.vis){DSPR.vis=far;DSPR.forEach(sp=>sp.visible=far)}}
-  sun.position.copy(controls.target).add(SUNOFF);sun.target.position.copy(controls.target);sun.target.updateMatrixWorld();
+  const cd=camera.position.distanceTo(controls.target);
+  { // حل الوميض: نطاق عمق يتغير حسب القرب، وضباب يتبع المسافة
+    const nn=Math.max(.8,Math.min(60,cd*.03)),ff=Math.max(3000,cd*40);
+    if(Math.abs(nn-camera.near)>camera.near*.08){camera.near=nn;camera.far=ff;camera.updateProjectionMatrix()}
+    scene.fog.near=cd*2.2+100;scene.fog.far=cd*9+2500;
+  }
+  { // أسماء الأحياء والمعالم تكبر مع التبعيد حتى تبقى مقروءة
+    const far=cd>150;if(far!==DSPR.vis){DSPR.vis=far;DSPR.forEach(sp=>sp.visible=far)}
+    if(far)DSPR.forEach(sp=>sp.scale.set(cd*.2,cd*.05,1));
+    const f=Math.max(1,Math.min(4,cd/120));
+    LM.forEach(l=>l.sprite.scale.set(15*f,3.75*f,1));BR.forEach(b=>b.sprite.scale.set(11*f,2.75*f,1));
+  }
+  { // ظل ثابت بدون اهتزاز: نثبّت موقع الشمس على شبكة بكسلات خريطة الظل
+    const st=96/1024,tr=controls.target.dot(SRIGHT),tu=controls.target.dot(SUP2);
+    _tt.copy(controls.target).addScaledVector(SRIGHT,Math.round(tr/st)*st-tr).addScaledVector(SUP2,Math.round(tu/st)*st-tu);
+    sun.position.copy(_tt).add(SUNOFF);sun.target.position.copy(_tt);sun.target.updateMatrixWorld();
+  }
   // التحديد
   if(sel){
     const p=sel.h?{x:sel.h.x,z:sel.h.z}:{x:sel.l.X,z:sel.l.Z},pl=(Math.sin(now/220)+1)/2;
