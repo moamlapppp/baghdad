@@ -41,11 +41,12 @@ button.on{background:var(--gold)}
 </style>
 </head>
 <body>
+<script>window.addEventListener("error",function(e){var d=document.createElement("div");d.style.cssText="position:fixed;bottom:0;left:0;right:0;z-index:99;background:#b00020;color:#fff;font:12px monospace;padding:6px;direction:ltr";d.textContent="ERR: "+e.message+" @"+(e.lineno||"")+":"+(e.colno||"");document.body.appendChild(d)});</script>
 <div id="err">تعذر تحميل محرك الـ3D. تأكد من الإنترنت وافتح الصفحة مرة ثانية.</div>
 
 <div class="top">
   <div>
-    <h1>🏙️ بغداد — مدينة المتابعين <small style="font-size:10px;opacity:.7">v12</small></h1>
+    <h1>🏙️ بغداد — مدينة المتابعين <small style="font-size:10px;opacity:.7">v13</small></h1>
     <div class="lvl" id="lvl"></div>
     <div class="prog"><i id="progBar"></i></div>
     <div class="next" id="next"></div>
@@ -537,7 +538,13 @@ function houseVar(v){
   if(P.mirror){g.scale(-1,1,1);const ix=g.index.array;for(let i=0;i<ix.length;i+=3){const t=ix[i+1];ix[i+1]=ix[i+2];ix[i+2]=t}}
   return g;
 }
-const HM=Array.from({length:NV},(_,v)=>{const m=new THREE.InstancedMesh(houseVar(v),FARMMAT,CAP);m.castShadow=true;m.receiveShadow=true;m.count=0;m.frustumCulled=false;scene.add(m);return m});
+function safeVar(v){
+  try{return houseVar(v)}catch(e){
+    const g=new THREE.BoxGeometry(5,3.5,4).translate(0,1.75,0),n=g.attributes.position.count,c=new Float32Array(n*3).fill(.9);
+    g.setAttribute("color",new THREE.BufferAttribute(c,3));return g;
+  }
+}
+const HM=Array.from({length:NV},(_,v)=>{const m=new THREE.InstancedMesh(safeVar(v),FARMMAT,CAP);m.castShadow=true;m.receiveShadow=true;m.count=0;m.frustumCulled=false;scene.add(m);return m});
 function writeHouse(n,k){
   const h=houses[n],f=h.s*k;
   _qy.setFromAxisAngle(UP,h.rot);
@@ -920,7 +927,7 @@ function build(){
       houses.push({u,date:b.date,bi,x:s.x/K,z:s.y/K,i:s.i,j:s.j,n:houses.length+1,t:ty,li:tc[ty]++,s:sc,
         w:cust?11:5.6*sc,h:cust?10:5.4*sc,rot:cust?0:Math.floor(r1*4)*Math.PI/2,
         col:PAL[Math.floor(r2*PAL.length)],dist:districtOf(s.x,s.y),born:0});
-      if(cust)houses[houses.length-1].cm=getFarm();
+      if(cust){try{houses[houses.length-1].cm=getFarm()}catch(e){houses[houses.length-1].s=1;houses[houses.length-1].w=5.6;houses[houses.length-1].h=5.4}}
     });
     batchEnd.push(houses.length);
   });
