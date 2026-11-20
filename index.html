@@ -46,7 +46,7 @@ button.on{background:var(--gold)}
 
 <div class="top">
   <div>
-    <h1>🏙️ بغداد — مدينة المتابعين <small style="font-size:10px;opacity:.7">v14</small></h1>
+    <h1>🏙️ بغداد — مدينة المتابعين <small style="font-size:10px;opacity:.7">v15</small></h1>
     <div class="lvl" id="lvl"></div>
     <div class="prog"><i id="progBar"></i></div>
     <div class="next" id="next"></div>
@@ -151,6 +151,16 @@ BR.forEach(b=>{
   const dx=r.x-q.x,dy=r.y-q.y,l=Math.hypot(dx,dy)||1,nx=-dy/l,ny=dx/l;
   b.ax=p.x-nx*16.5;b.ay=p.y-ny*16.5;b.bx=p.x+nx*16.5;b.by=p.y+ny*16.5;b.x=p.x;b.y=p.y;
 });
+const DEX=(function(){
+  let bi=0,bd=1e9;const tx=595*G,ty=1118*G;
+  for(let i=0;i<R.length;i++){const d=Math.hypot(R[i].x-tx,R[i].y-ty);if(d<bd){bd=d;bi=i}}
+  const a=R[Math.max(bi-1,0)],b=R[Math.min(bi+1,R.length-1)];
+  let dx=b.x-a.x,dy=b.y-a.y;const l=Math.hypot(dx,dy)||1;dx/=l;dy/=l;
+  let nx=-dy,ny=dx;
+  if((R[bi].x-CENTER.x)*nx+(R[bi].y-CENTER.y)*ny<0){nx=-nx;ny=-ny}
+  const off=31;
+  return{x:R[bi].x+nx*off,y:R[bi].y+ny*off,rot:Math.atan2(-nx,-ny)};
+})();
 const LM=[
   {id:"tahrir",name:"نصب الحرية",emoji:"🕊️",x:470*G,y:795*G,need:0,desc:"ساحة التحرير — منها تنطلق المدينة"},
   {id:"turath",name:"جامعة التراث",emoji:"🎓",x:350*G,y:840*G,need:0,desc:"صرح علمي بالمنصور — جامعة التراث"},
@@ -162,6 +172,7 @@ const LM=[
   {id:"shaheed",name:"نصب الشهيد",emoji:"🌙",x:545*G,y:842*G,need:400,desc:"القبة الزرقاء المشطورة"},
   {id:"umqura",name:"جامع أم القرى",emoji:"🕌",x:250*G,y:800*G,need:500,desc:"من أكبر جوامع المدينة"},
   {id:"zawraa",name:"حديقة الزوراء",emoji:"🎡",x:398*G,y:818*G,need:700,desc:"متنفس العائلة بالجانب الغربي"},
+  {id:"dexter",name:"شقة ديكستر",emoji:"🏢",x:DEX.x,y:DEX.y,need:0,r:36,desc:"عمارة سكنية بطراز منتصف القرن على ضفة النهر"},
   {id:"airport",name:"مطار بغداد",emoji:"✈️",x:165*G,y:915*G,need:1000,desc:"بوابة العاصمة على العالم"}
 ];
 LM.forEach(l=>{ // نبعد المعلم عن النهر
@@ -181,7 +192,7 @@ for(let j=0;j<NZc;j++)for(let i=0;i<NXc;i++){
   if(!inPoly(x,y,BOUND))continue;
   if(distRiver(x,y)<14)continue;
   let bad=false;
-  for(const l of LM)if(Math.hypot(l.x-x,l.y-y)<11){bad=true;break}
+  for(const l of LM)if(Math.hypot(l.x-x,l.y-y)<(l.r||11)){bad=true;break}
   if(bad)continue;
   for(const b of BR)if(distSeg(x,y,b.ax,b.ay,b.bx,b.by)<5){bad=true;break}
   if(bad)continue;
@@ -667,6 +678,69 @@ const LMB={
     B(g,.5,8.5,.5,0x555555,-2.5,4.2,-.5).rotation.z=-.2;B(g,.5,8.5,.5,0x555555,2.5,4.2,-.5).rotation.z=.2;
     g.userData.spin=wheel;
     return 15;
+  },
+
+  dexter(g){
+    const a=[],WT=[.95,.95,.93],TL=[.2,.62,.72],GLS=[.22,.3,.36],CUR=[.9,.9,.86],LV=[.72,.8,.84],GR=[.4,.62,.3],HG=[.13,.32,.14],L=44;
+    const sph2=(r,x,y,z,c,sy)=>a.push({g:SPH,m:new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion(),new THREE.Vector3(r,r*(sy||1),r)),c});
+    const AZ=new THREE.Vector3(0,0,1),AY=new THREE.Vector3(0,1,0);
+    const pcz=(r,h,x,y,z,c,rz)=>a.push({g:_cg,m:new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion().setFromAxisAngle(AZ,rz),new THREE.Vector3(r,h,r)),c});
+    const pbz=(w,h,d,x,y,z,c,rz)=>a.push({g:boxG,m:new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion().setFromAxisAngle(AZ,rz),new THREE.Vector3(w,h,d)),c});
+    const CN=new THREE.ConeGeometry(.3,1,6);
+    const cone=(x,y,z,len,tilt,yaw,c)=>{const q=new THREE.Quaternion().setFromAxisAngle(AY,yaw).multiply(new THREE.Quaternion().setFromAxisAngle(AZ,tilt));a.push({g:CN,m:new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),q,new THREE.Vector3(1,len,1)),c})};
+    /* الأساس والهيكل */
+    pb(a,L+.4,.4,9.8,0,.2,0,[.85,.85,.83]);
+    pb(a,L,4.0,.3,0,2.4,-4.5,WT);pb(a,.3,4.0,9,-L/2,2.4,0,WT);pb(a,.3,4.0,9,L/2,2.4,0,WT);
+    pb(a,L-.4,3.9,8.6,0,2.35,0,[.17,.2,.24]);
+    /* واجهة الطابق الأرضي: زجاج وستائر وأبواب */
+    const n=24,sw=(L-1)/n;
+    for(let k=0;k<n;k++){
+      const x=-L/2+.5+sw*(k+.5);
+      pb(a,sw-.2,3.1,.1,x,2.3,4.3,GLS);
+      if(k%3!==0)pb(a,sw-.28,2.9,.08,x,2.3,4.38,CUR);
+      if(k%4===1)for(let i=0;i<10;i++)pb(a,sw-.3,.04,.12,x,.95+i*.3,4.44,[.82,.87,.9]);
+      pb(a,.12,3.4,.22,x+sw/2,2.2,4.35,WT);
+      if(k===5||k===17){pb(a,1.25,2.75,.14,x,1.75,4.46,TL);pb(a,.1,.1,.08,x+.4,1.7,4.56,[.8,.8,.8])}
+    }
+    pb(a,L,.14,.26,0,.55,4.38,WT);pb(a,L,.14,.26,0,3.9,4.38,WT);
+    /* بلاطة الشرفة العلوية والسياج */
+    pb(a,L+.6,.4,11.5,0,4.4,1.25,WT);pb(a,L+.6,.55,.2,0,4.3,7.05,WT);
+    pb(a,L,.1,.14,0,5.55,6.85,WT);pb(a,L,.1,.12,0,4.78,6.85,WT);
+    for(let x=-L/2;x<=L/2;x+=.32)pb(a,.045,.8,.05,x,5.16,6.85,WT);
+    for(let x=-L/2+.3;x<L/2-.3;x+=.6){pbz(.9,.035,.04,x,5.16,6.9,WT,.8);pbz(.9,.035,.04,x,5.16,6.9,WT,-.8)}
+    /* الطابق الثاني: جدار ونوافذ شيش */
+    pb(a,L,3.9,.3,0,6.5,4.35,WT);pb(a,L,3.9,.3,0,6.5,-4.5,WT);pb(a,.3,3.9,9,-L/2,6.5,0,WT);pb(a,.3,3.9,9,L/2,6.5,0,WT);
+    pb(a,L-.4,3.8,8.6,0,6.5,0,[.2,.23,.27]);
+    for(let k=0;k<13;k++){
+      const x=-L/2+2.3+k*3.2;
+      if(k===4||k===9){pb(a,1.25,2.75,.14,x,6.05,4.6,TL);pb(a,.1,.1,.08,x+.4,6.0,4.7,[.8,.8,.8]);continue}
+      pb(a,3.0,2.9,.1,x,6.6,4.52,WT);pb(a,2.74,2.64,.12,x,6.6,4.58,LV);
+      for(let i=0;i<12;i++)pb(a,2.7,.035,.14,x,5.4+i*.2,4.66,[1,1,1]);
+      pb(a,.07,2.7,.16,x-.9,6.6,4.68,WT);pb(a,.07,2.7,.16,x+.9,6.6,4.68,WT);
+    }
+    for(let i=0;i<5;i++)pb(a,.12,.04,3.4,L/2+.16,6.2+i*.18,0,[.85,.9,.92]);
+    pb(a,.1,1.1,3.6,L/2+.14,6.6,0,[.35,.42,.46]);
+    /* السقف البارز بحافة بيضاء سميكة */
+    pb(a,L+2.8,.75,14.2,0,8.85,1.3,WT);pb(a,L+2.2,.18,13.4,0,9.3,1.3,[.9,.9,.9]);
+    for(const [x,z] of [[-14,-1],[-6,2],[4,-2],[12,1],[18,-3]]){pb(a,1.7,1.0,1.7,x,9.9,z,[.7,.72,.75]);pb(a,1.3,.1,1.3,x,10.45,z,[.2,.2,.22]);pb(a,.3,.5,.3,x+2,9.6,z+.5,[.8,.8,.82])}
+    /* أعمدة تركوازية مائلة */
+    for(let k=0;k<9;k++){const x=-L/2+2+k*5.4,sg=k%2?1:-1;pcz(.16,8.9,x+sg*.42,4.5,7.0,TL,-sg*.1);pb(a,.45,.1,.45,x,.05,7.3,[.7,.7,.7])}
+    /* الأرض والعشب والممرات */
+    pb(a,L+12,.12,26,0,.06,6,GR);
+    pb(a,L+6,.14,1.5,0,.13,12.5,[.88,.88,.85]);pb(a,1.6,.14,6,-6,.13,9.5,[.88,.88,.85]);pb(a,1.6,.14,6,13,.13,9.5,[.88,.88,.85]);
+    pb(a,11,.1,12,L/2+8,.1,2,[.34,.34,.36]);
+    /* سياج أخضر وشجيرات وأشجار */
+    for(const x of[-18,-14,-10,-2,2,6,12,16,19])pb(a,3.6,1.1,1.5,x,.65,9.4,HG);
+    sph2(2.7,-5,2.2,10.8,[.3,.5,.22],.85);sph2(2.2,-5.5,1.8,10.6,[.26,.46,.2],.8);
+    sph2(1.8,-20,1.4,9.6,[.28,.5,.22],.9);
+    pc(a,.35,5.2,-1,2.6,6.4,[.28,.2,.12]);
+    for(let i=0;i<16;i++)cone(-1,5.2,6.4,2.8,.9+(i%3)*.35,i*Math.PI/8,[.08,.26,.12]);
+    pc(a,.3,15,L/2+3.5,7.5,10,[.38,.3,.24]);
+    for(let i=0;i<7;i++){const y=i*Math.PI*2/7;a.push({g:SPH,m:new THREE.Matrix4().compose(new THREE.Vector3(L/2+3.5+Math.cos(y)*1.8,15,10+Math.sin(y)*1.8),new THREE.Quaternion().setFromAxisAngle(AY,-y),new THREE.Vector3(2.2,.18,.5)),c:[.2,.4,.2]})}
+    for(const [x,z] of [[17,8],[-17,8.2]]){sph2(.6,x,.7,z,[.42,.1,.22],.9);sph2(.5,x+.6,.6,z+.3,[.4,.08,.2],.9)}
+    const m=new THREE.Mesh(mergeParts(a),FARMMAT);m.castShadow=true;m.receiveShadow=true;m.frustumCulled=false;
+    g.add(m);g.rotation.y=DEX.rot;
+    return 11;
   },
   airport(g){
     B(g,18,3.5,8,0xcfd8de,0,1.75,0);B(g,19,.5,9,0x8fa3b3,0,3.8,0);B(g,16,2.4,.2,0x6fa6c4,0,1.9,4.05);
