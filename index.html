@@ -46,7 +46,7 @@ button.on{background:var(--gold)}
 
 <div class="top">
   <div>
-    <h1>🏙️ بغداد — مدينة المتابعين <small style="font-size:10px;opacity:.7">v13</small></h1>
+    <h1>🏙️ بغداد — مدينة المتابعين <small style="font-size:10px;opacity:.7">v14</small></h1>
     <div class="lvl" id="lvl"></div>
     <div class="prog"><i id="progBar"></i></div>
     <div class="next" id="next"></div>
@@ -85,8 +85,8 @@ button.on{background:var(--gold)}
   </div>
 </div></div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
 (function(){
 "use strict";
@@ -933,7 +933,7 @@ function build(){
   });
   cellMap=new Map();houses.forEach((h,n)=>cellMap.set(h.i*1000+h.j,n));
   const c=new THREE.Color();
-  houses.forEach((h,n)=>{const q=.94+hash(h.n*7)*.1;c.setRGB(q,q,q);HM[h.t].setColorAt(h.li,c);writeHouse(n,1)});
+  houses.forEach((h,n)=>{writeHouse(n,1)});
   HM.forEach(m=>{if(m.instanceColor)m.instanceColor.needsUpdate=true});
   flushInst();
   animList.length=0;
@@ -1159,7 +1159,7 @@ function loop(now){
     const sc=(sel.l?2.6:1)*(1+pl*.18);ring.scale.set(sc,sc,sc);ring.material.opacity=.95-pl*.5;
   }else ring.visible=false;
   updatePool(now);
-  renderer.render(scene,camera);
+  try{renderer.render(scene,camera)}catch(e){if(!window.__RE){window.__RE=1;const d=document.createElement("div");d.style.cssText="position:fixed;bottom:40px;left:0;right:0;z-index:99;background:#b00020;color:#fff;font:11px monospace;padding:6px;direction:ltr;word-break:break-all";d.textContent="RENDER: "+e.message+" | "+String(e.stack||"").slice(0,300);document.body.appendChild(d)}}
 }
 
 /* ---------- تشغيل ---------- */
